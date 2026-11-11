@@ -18,9 +18,10 @@ host_guard_end() {
   else echo "FAIL: the host's focused window changed: $HOST_ACTIVE -> $now"; FAILED=1; fi
 }
 
-# LUA picks the config (test.lua: every window floats by rule; floating.lua: workspace 1 has the floating layout).
+# LUA picks the config (test.lua: every window floats by rule; floating.lua: workspace 1 has the floating layout;
+# omarchy.lua: Omarchy's own Lua). SESSION_ENV: more VAR=value words for the nested Hyprland.
 session_start() { # [plugin.so ...]
-  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" BARS="${BARS:-0}" OMARCHY_TAGS="${OMARCHY_TAGS:-1}" || exit 1
+  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" BARS="${BARS:-0}" OMARCHY_TAGS="${OMARCHY_TAGS:-1}" ${SESSION_ENV:-} || exit 1
   read -r W H < <(hyprctl monitors -j | jq -r '.[0] | "\(.width) \(.height)"')
 }
 # The nested Hyprland must not have crashed, in the middle of the run (alive) or while it shut down.
