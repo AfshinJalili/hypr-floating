@@ -7,14 +7,21 @@ namespace HyprFloating::Config {
 
 // Kept so stackingFix() reads the resolved value() (a Lua config's too).
 static SP<::Config::Values::CIntValue> g_stackingFix;
+static SP<::Config::Values::CIntValue> g_omarchyTags;
 
 void registerValues(HANDLE handle) {
     g_stackingFix = makeShared<::Config::Values::CIntValue>("plugin:hypr_floating:stacking_fix", "", ::Config::INTEGER{1});
     HyprlandAPI::addConfigValueV2(handle, g_stackingFix);
+    g_omarchyTags = makeShared<::Config::Values::CIntValue>("plugin:hypr_floating:omarchy_tags", "", ::Config::INTEGER{1});
+    HyprlandAPI::addConfigValueV2(handle, g_omarchyTags);
 }
 
 bool stackingFix() {
     return !g_stackingFix || g_stackingFix->value() != 0;
+}
+
+bool omarchyTags() {
+    return !g_omarchyTags || g_omarchyTags->value() != 0;
 }
 
 } // namespace HyprFloating::Config

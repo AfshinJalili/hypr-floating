@@ -2,10 +2,13 @@
 // Only this header changes between the main (0.57) and hyprland-0.56 branches.
 #pragma once
 
+#include <hyprland/src/desktop/view/Group.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/workspace/HLWorkspace.hpp>
 #include <hyprland/src/desktop/view/window/WindowFullscreenPolicy.hpp>
 #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+
+#include <vector>
 
 namespace HyprFloating::Compat {
 
@@ -27,6 +30,27 @@ inline bool allowedOverFullscreen(const PHLWINDOW& w) {
 
 inline void setAllowedOverFullscreen(const PHLWINDOW& w, bool allowed) {
     w->fullscreenPolicy().setAllowedOverFullscreen(allowed);
+}
+
+inline bool special(const PHLWORKSPACE& ws) {
+    return ws->type() == Workspace::eWorkspaceType::SPECIAL;
+}
+
+inline SP<::Layout::CSpace> space(const PHLWORKSPACE& ws) {
+    return ws->space();
+}
+
+// The windows of w's group, w included; w alone when it is not grouped.
+inline std::vector<PHLWINDOW> groupMembers(const PHLWINDOW& w) {
+    const auto& group = w->grouping().group();
+    if (!group)
+        return {w};
+    std::vector<PHLWINDOW> members;
+    for (const auto& ref : group->windows()) {
+        if (const auto m = ref.lock())
+            members.push_back(m);
+    }
+    return members;
 }
 
 // The fade that hides a window behind full screen: what CWindowState::moveToZ sets.
