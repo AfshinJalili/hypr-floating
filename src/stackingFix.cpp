@@ -6,7 +6,6 @@
 
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
-#include <hyprland/src/desktop/Workspace.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/render/Renderer.hpp>
@@ -36,7 +35,7 @@ SWorkspaceWindows snapshot(const PHLWORKSPACE& ws) {
 
     SWorkspaceWindows out;
     for (const auto& w : Desktop::windowState()->windows()) {
-        if (!w || !w->m_isMapped || w->m_workspace != ws)
+        if (!w || !Compat::mapped(w) || w->m_workspace != ws)
             continue;
         out.windows.push_back({.floating = Compat::floating(w), .pinned = Compat::pinned(w), .fullscreen = w == FS});
         out.handles.push_back(w);
@@ -45,11 +44,11 @@ SWorkspaceWindows snapshot(const PHLWORKSPACE& ws) {
 }
 
 void setOverFullscreen(const PHLWINDOW& w, bool over) {
-    if (w->m_allowedOverFullscreen == over)
+    if (Compat::allowedOverFullscreen(w) == over)
         return;
-    w->m_allowedOverFullscreen = over;
+    Compat::setAllowedOverFullscreen(w, over);
     w->updateFullscreenInputState();
-    *w->alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = w->isBlockedByFullscreen() ? 0.F : 1.F;
+    Compat::setFullscreenAlpha(w, w->isBlockedByFullscreen() ? 0.F : 1.F);
     g_pHyprRenderer->damageWindow(w);
 }
 
@@ -73,7 +72,7 @@ void restack(const PHLWORKSPACE& ws) {
 void restackAll() {
     std::set<PHLWORKSPACE> seen;
     for (const auto& w : Desktop::windowState()->windows()) {
-        if (w && w->m_isMapped && w->m_workspace && seen.insert(w->m_workspace).second)
+        if (w && Compat::mapped(w) && w->m_workspace && seen.insert(w->m_workspace).second)
             restack(w->m_workspace);
     }
 }
