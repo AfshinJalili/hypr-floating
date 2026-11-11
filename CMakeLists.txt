@@ -36,4 +36,5 @@ if(HYPR_FLOATING_PLUGIN)
   target_link_libraries(hypr-floating PRIVATE hypr-floating-core PkgConfig::deps)
 
   install(TARGETS hypr-floating LIBRARY DESTINATION lib/hypr-floating)
+  install(FILES lua/omarchy.lua DESTINATION lib/hypr-floating)
 endif()

@@ -114,7 +114,7 @@ sudo pacman -R hypr-floating-git                              # the package
 scripts/uninstall.sh                                          # the script
 ```
 
-Then take the `hl.plugin.load` line out of `hyprland.lua`. The running session keeps the plugin until the next login; `hyprctl plugin unload` tiles the windows the layout floated and keeps the session.
+Then take the `hl.plugin.load` line (and the `omarchy.lua` one) out of `hyprland.lua`. The running session keeps the plugin until the next login; `hyprctl plugin unload` tiles the windows of floating workspaces and keeps the session.
 
 ### Manual build
 
@@ -146,44 +146,35 @@ plugin {
 
 ## Omarchy
 
-[Omarchy](https://omarchy.org)'s floating workspaces are a Lua workaround (`default/hypr/workspace-modes.lua`): Hyprland had no layout that floats, so Omarchy floats the windows itself, claims them with the tag `omarchy-mode-floated`, and tags every window of the workspace `omarchy-floating-workspace`, which the titlebars, shadows and opaque windows follow. The `floating` layout does the floating natively, with the same placement, and sets the same tags (`omarchy_tags`).
+[Omarchy](https://omarchy.org)'s floating workspaces are a Lua workaround (`default/hypr/workspace-modes.lua`): with no layout that floats, Omarchy keeps the tiled layout and floats the windows itself, with tags. Next to the plugin that is two systems deciding the same thing, and they fight. [`lua/omarchy.lua`](lua/omarchy.lua) makes Omarchy's floating mode the plugin's layout instead, and keeps everything of Omarchy's working unchanged:
 
-### Both at once
+- It replaces `o.workspace_mode`, which Omarchy's toggle (`omarchy-hyprland-workspace-layout-toggle`, Super + L, the bar's layout button), its default layout (`omarchy-hyprland-workspace-layout-default`) and its saved layouts (`~/.local/state/omarchy/workspace-layouts/`) all go through. `mode = "floating"` gives the workspace the layout `floating`, dwindle and scrolling give it theirs, and `default = "floating"` sets `general:layout` to `floating`. Omarchy's Lua floating mode then never acts on a workspace.
+- The toggle still saves the mode in those files, and the bar and the dock read it from there (`omarchy-hyprland-workspace-layout-current`), so they show what the workspace is.
+- What a floating workspace looks like is Omarchy's own setup (shadows, opaque windows, its titlebars in the theme's colours, or omarchy-macos's), pointed at the plugin's `hypr-floating-workspace` tag.
+- On a floating workspace focus follows clicks (`input:follow_mouse = 0`), and your own setting is back on any other, as in Omarchy's floating mode.
+- A window opening on a floating workspace brings a maximized window there back to its size, as in Omarchy's floating mode.
+- Minimizing (`omarchy-hyprland-window-minimize`) works as before; a window coming back from the dock takes its workspace's mode then.
 
-With Omarchy's floating mode on the same workspace, Omarchy's Lua floats a window as it opens, before the layout sees it, so the layout never claims it: Omarchy wins and the layout stays idle. Nothing breaks, and the layout leaves Omarchy's tags alone. `test/run-omarchy.sh` checks it.
+### Use it
 
-### Omarchy's Lua knows a mode, but not floating, for the workspace
+`scripts/install.sh` and the package put `omarchy.lua` next to `hypr-floating.so`. Load it in `~/.config/hypr/hyprland.lua` after the plugin and **before** `require("default.hypr.toggles")`, which loads the saved layouts:
 
-This is every Omarchy that has saved a layout for any workspace. With `omarchy_tags` on, Omarchy's Lua watcher sees `omarchy-mode-floated` on a window of a workspace it does not float, takes the window for a leftover of its own mode and tiles it, and strips `omarchy-floating-workspace`. **The layout then looks broken: its windows open tiled.** Set `omarchy_tags = 0` when Omarchy's Lua is in the way.
+```lua
+local hypr_floating = os.getenv("HOME") .. "/.local/lib/hypr-floating"   -- /usr/lib/hypr-floating for the package
+if io.open(hypr_floating .. "/hypr-floating.so", "r") then
+  pcall(hl.plugin.load, hypr_floating .. "/hypr-floating.so")
+  dofile(hypr_floating .. "/omarchy.lua")
+end
 
-### Switching from Omarchy's floating mode to the layout
+-- Toggle config flags dynamically.
+require("default.hypr.toggles")
+```
 
-Omarchy keeps its modes in `~/.local/state/omarchy/workspace-layouts/`. A setup with a default of floating has `default.lua` with `o.workspace_mode({ default = "floating" })` and, say, `1.lua` with workspace 1 as dwindle.
+The saved layouts stay as they are: a `default.lua` with `o.workspace_mode({ default = "floating" })` makes every workspace float with the layout, a `1.lua` with workspace 1 as dwindle keeps it dwindle. Reload (`hyprctl reload`) or log in again; the first reload tiles what Omarchy's Lua had floated where nothing floats now, and the layout floats the rest.
 
-1. Delete the saved default. Without one, Omarchy takes Hyprland's own `general:layout` as the default:
+`test/run-omarchy.sh` runs Omarchy's own Lua and scripts against this in a nested Hyprland: the toggle through dwindle, scrolling and floating, the bar, titlebars, minimizing, moves across monitors, a reload.
 
-   ```sh
-   rm ~/.local/state/omarchy/workspace-layouts/default.lua
-   ```
-
-2. In `~/.config/hypr/hyprland.lua`, after `require("default.hypr.toggles")` (which loads Omarchy's saved modes), add the lines of [`examples/omarchy.lua`](examples/omarchy.lua):
-
-   ```lua
-   hl.config({ general = { layout = "floating" }, plugin = { hypr_floating = { omarchy_tags = 0 } } })
-   o.workspace_mode({ workspace = "99", mode = "floating" })
-   hl.config({ plugin = { hyprbars = { workspace_tag = "hypr-floating-workspace" } } })
-   o.window({ tag = "hypr-floating-workspace" }, { opacity = "1.0 override 1.0 override", no_shadow = false })
-   ```
-
-   The first line makes every workspace float, except those with a saved layout of their own (`1.lua` keeps workspace 1 dwindle). The second gives Omarchy a floating workspace nobody uses, so it still sets up what floating workspaces need (the titlebar plugin, shadows, opaque windows); the last two point the titlebars and the opacity at the layout's workspaces.
-
-Then reload (`hyprctl reload`) or log in again. `test/run-omarchy.sh` runs these lines against Omarchy's own Lua.
-
-What Omarchy's Lua mode does that the layout does not:
-
-- A floating workspace no longer sets `input:follow_mouse = 0`. Add it to your config if you want it.
-- Omarchy's cycle (`omarchy-hyprland-workspace-layout-toggle`: dwindle, scrolling, floating) uses Omarchy's Lua floating mode when it reaches floating, not the layout, and saves that mode for the workspace. To give the workspace the layout back, delete its file in `workspace-layouts/` and reload.
-- Omarchy's bar and dock read a workspace's layout with `omarchy-hyprland-workspace-layout-current`: it reports `floating` for the layout, from the workspace's `tiledLayout`, and for the default from `general:layout`.
+Without `lua/omarchy.lua`, Omarchy's floating mode keeps floating windows itself and the plugin's layout is not used; the plugin then only brings windows in line when a layout changes or a window moves, which can fight Omarchy's Lua on a workspace it floats.
 
 The plugin loads next to the omarchy-macos titlebars and Mission Control plugins (`test/run-floating-plugins.sh`).
 
@@ -191,7 +182,7 @@ The plugin loads next to the omarchy-macos titlebars and Mission Control plugins
 
 - Windows in the full-screen window's group are drawn over it by Hyprland whatever their flag; the plugin does not change that.
 - Hyprland routes a click to the window the pointer was last over until the pointer moves. A window raised or hidden under a pointer that is perfectly still can take that one click's raise. That is Hyprland's, and a real pointer always moves.
-- Switching a workspace to the layout while windows are open floats the tiled ones one tick later, once Hyprland has finished switching.
+- The plugin follows Hyprland's events a tick later, once the change has landed: switching a workspace to the layout floats its tiled windows then, and a window carried in takes the mode then.
 - The layout's name, `floating`, must be free: loading fails if Hyprland or another plugin already has a layout of that name.
 - The Hyprland versions differ only in `src/compat.hpp`.
 - `spec/` models the layout's bookkeeping (`Floating.tla`) as well as the stacking rule.
@@ -209,7 +200,7 @@ The plugin loads next to the omarchy-macos titlebars and Mission Control plugins
 | `test/unit/` | Unit tests (CTest) |
 | `test/run-*.sh` | Nested Hyprland tests, see `AGENTS.md` |
 | `spec/` | TLA+ models and `check.sh` |
-| `examples/omarchy.lua` | The config that switches Omarchy from its floating mode to the layout |
+| `lua/omarchy.lua` | Omarchy's workspace modes on the layout: loaded from `hyprland.lua` |
 | `PKGBUILD`, `scripts/` | Packaging and the user install |
 
 ## License
