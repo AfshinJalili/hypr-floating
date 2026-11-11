@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(HYPR_FLOATING_PLUGIN "Build the Hyprland plugin (needs Hyprland's headers)" ON)
 
 # The rules, with no Hyprland in them: built and tested on their own.
-add_library(hypr-floating-core STATIC src/stacking.cpp)
+add_library(hypr-floating-core STATIC src/stacking.cpp src/floating.cpp)
 target_include_directories(hypr-floating-core PUBLIC src)
 target_compile_options(hypr-floating-core PRIVATE -Wall -Wextra)
 
@@ -16,6 +16,9 @@ if(BUILD_TESTING)
   add_executable(stacking-test test/unit/stacking_test.cpp)
   target_link_libraries(stacking-test PRIVATE hypr-floating-core)
   add_test(NAME stacking COMMAND stacking-test)
+  add_executable(floating-test test/unit/floating_test.cpp)
+  target_link_libraries(floating-test PRIVATE hypr-floating-core)
+  add_test(NAME floating COMMAND floating-test)
 endif()
 
 if(HYPR_FLOATING_PLUGIN)
@@ -24,8 +27,8 @@ if(HYPR_FLOATING_PLUGIN)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(deps REQUIRED IMPORTED_TARGET hyprland cairo libdrm libinput libudev pixman-1 wayland-server xkbcommon)
 
-  # Built as hypr-floating.so (no lib prefix). src/layout/ is for the floating layout.
-  add_library(hypr-floating SHARED src/main.cpp src/config.cpp src/stackingFix.cpp)
+  # Built as hypr-floating.so (no lib prefix). 
+  add_library(hypr-floating SHARED src/main.cpp src/config.cpp src/stackingFix.cpp src/layout/claims.cpp src/layout/floatingAlgo.cpp src/layout/floatingLayout.cpp)
   set_target_properties(hypr-floating PROPERTIES PREFIX "" POSITION_INDEPENDENT_CODE ON)
   # -fno-gnu-unique: otherwise glibc marks the .so NODELETE, and a plugin unload
   # followed by a load of the same path returns the old image.
