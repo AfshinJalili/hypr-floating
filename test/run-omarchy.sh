@@ -173,6 +173,8 @@ scenario_reload() {
   start omarchy-reload reload "$TMP/user-hover.lua"
   workspace 2; open_class A; open_class B; float_off B
   expect "{ follow_mouse = false }: focus still follows the pointer on the floating workspace" "$(follow_mouse)" 1
+  fullscreen maximized A; open_class T
+  expect "a window opening on the floating workspace brings the maximized A back to its size" "$(win A | jq -r .fullscreen)" 0
   workspace 1; open_class C
   hyprctl reload >/dev/null; sleep 2
   expect "no config errors after the reload" "$(hyprctl configerrors | tr -d '[:space:]')" ""
