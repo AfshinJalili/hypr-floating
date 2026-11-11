@@ -1,4 +1,8 @@
-# The stacking rule, modelled
+# The models
+
+Two TLA+ models, both checked by `spec/check.sh`: `Stacking.tla` (the stacking rule of stage 1) and `Floating.tla` (the floating layout's float/tile bookkeeping, at the end).
+
+## The stacking rule
 
 `Stacking.tla` models one workspace the way Hyprland 0.56's code handles it (the file comments cite the source), and the plugin's two rules on top. TLC checks it exhaustively for three windows (four with `--big`): every window floating, tiled or pinned, every order, every action.
 
@@ -125,3 +129,55 @@ The trace: `w2` and `w3` float, `w3` opens above and goes full screen, then `w2`
 ## Limits
 
 The model is only as good as its reading of Hyprland, which `test/run-click.sh` checks against the real compositor (drawn and clicked windows match the model's predictions, and stock Hyprland shows the bug). It cannot say anything about code the model does not have, such as the X11 transient stack that `moveToZ` raises with a window.
+
+# The floating layout's bookkeeping
+
+`Floating.tla` models what `src/floating.hpp` decides: which windows a floating workspace floats, and which of them tile again when the workspace stops floating or the plugin unloads. TLC checks it for three windows on two workspaces with one group (about 11 000 distinct states, a second).
+
+```sh
+spec/check.sh         # also runs this model, and the variants below
+```
+
+## The model
+
+- A workspace has a requested layout, `"floating"` or `"tiled"`, and floats its windows only while the plugin is loaded.
+- Per window, `origin` is the ground truth only the model sees: `"tiled"`, `"own"` (it floats on its own: a float rule, a dialog, the user) or `"plugin"` (the layout floated it). `claimed` is the plugin's mark on the window. `explicit` says the user un-floated it and it has stayed tiled.
+- Actions: a window opens (alone, floated by a rule, or into an existing group), a window becomes a group, closes, the user toggles floating, a window moves to another workspace, a workspace's layout changes live, the plugin unloads, the plugin loads.
+- After any change `Sync` is the one place that floats and tiles: a tiled window the user did not un-float floats on a floating workspace, and a claimed window tiles on one that does not float. A group floats and tiles as one.
+- `Variant` switches rules off, to show each one is needed: `"full"` (all on), `"refloat"`, `"noexit"`, `"headtag"`, `"nogroup"`, `"all"`.
+
+Not modelled: special workspaces (a minimized window keeps its state), pinned windows (tiling would unpin them) and full-screen windows (left as they are), several monitors, the order of windows, and the tags Hyprland's events set a tick late.
+
+## What TLC checks
+
+| Property | Meaning |
+|---|---|
+| `FloatingWorkspaceFloats` | On a floating workspace every window the user did not explicitly tile floats |
+| `ExplicitSticks` | A window the user un-floated (togglefloating) there is tiled: the layout does not float it again |
+| `NothingFloatedWhereNothingFloats` | After a workspace stops floating or the plugin unloads, no window the layout floated is still floating |
+| `UserFloatedStayFloating` | A window that floats on its own stops floating only when the user tiles it |
+| `ClaimedExact` | The mark is on exactly the windows the layout floated: never on a tiled window, on every member of a floated group |
+| `GroupCoherent` | The members of a group share their floating state and their claim |
+
+## Results
+
+`Variant = "full"`:
+
+```
+Model checking completed. No error has been found.
+142976 states generated, 10856 distinct states found, 0 states left on queue.
+```
+
+Each variant without one rule fails the property that rule is for (the traces are the shortest TLC found; `SHOW_TRACE=1 spec/check.sh` prints them):
+
+| Variant | Fails | Counterexample |
+|---|---|---|
+| `refloat` | `ExplicitSticks` | A window opens on a floating workspace (the layout floats it); the user toggles it; the layout floats it again, `explicit` set, `origin = "plugin"`. The user's choice is lost: caveat 1 |
+| `noexit` | `NothingFloatedWhereNothingFloats` | A window opens on a floating workspace; the plugin unloads. The window floats and nothing floats it: caveat 2 |
+| `headtag` | `ClaimedExact` | Two windows form a group while the plugin is unloaded; it loads. Both float, but only the head is claimed: caveat 3 |
+| `nogroup` | `ClaimedExact` | A window opens into a claimed floated group, never reaching the layout: it floats unclaimed: caveat 3 |
+| `all` | `UserFloatedStayFloating` | A window floats by a rule on a floating workspace; the workspace's layout goes to tiled. The window tiles though the user never asked |
+
+## Limits
+
+The model is as good as its reading of the plugin and of Hyprland's float/tile paths; `test/run-floating.sh` checks the same scenarios against the real compositor.
