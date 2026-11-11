@@ -34,8 +34,10 @@ struct SResult {
 };
 
 // Which windows are allowed over full screen. Applies only when the workspace has a
-// full-screen window and it floats; a tiled one stays stock Hyprland's.
+// full-screen window and it floats and is not pinned; otherwise the workspace stays
+// stock Hyprland's.
 SResult evaluate(const std::vector<SWindow>& bottomToTop);
+// (A pinned full-screen window is stock Hyprland's too: input goes to a pinned window first.)
 
 // Whether focusing windows[focused] must raise it. A focused floating window below
 // a floating full-screen one would be hidden by evaluate(), and Hyprland drops focus

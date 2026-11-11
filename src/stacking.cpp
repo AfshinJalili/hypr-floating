@@ -4,9 +4,12 @@
 
 namespace HyprFloating::Stacking {
 
+// The workspace's full-screen window when the rule applies to it.
 static std::vector<SWindow>::const_iterator floatingFullscreen(const std::vector<SWindow>& windows) {
     const auto it = std::ranges::find_if(windows, [](const SWindow& w) { return w.fullscreen; });
-    return it != windows.end() && it->floating ? it : windows.end();
+    // Hyprland takes input for a pinned window before any other, so nothing can be
+    // clicked over a pinned full-screen window: the workspace stays stock.
+    return it != windows.end() && it->floating && !it->pinned ? it : windows.end();
 }
 
 SResult evaluate(const std::vector<SWindow>& windows) {

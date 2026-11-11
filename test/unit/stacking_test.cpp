@@ -29,6 +29,8 @@ int main() {
     check(!evaluate({floating(), floating()}).applies, "no full-screen window: stock");
     check(!evaluate({floating(), fullscreen(false), floating()}).applies, "tiled full-screen window: stock");
 
+    check(!evaluate({floating(), {.floating = true, .pinned = true, .fullscreen = true}, floating()}).applies, "pinned full-screen window: stock");
+
     check(is({fullscreen(true)}, {LEAVE}), "a lone floating full-screen window");
     check(is({floating(), fullscreen(true), floating()}, {UNDER, LEAVE, OVER}), "below is hidden, above is allowed");
     check(is({floating(), floating(), fullscreen(true)}, {UNDER, UNDER, LEAVE}), "everything below is hidden");
