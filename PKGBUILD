@@ -15,11 +15,10 @@ makedepends=(git cmake pkgconf)
 source=("$pkgname::git+$url.git")
 sha256sums=(SKIP)
 
+# makepkg runs prepare() first, so HEAD is the commit that gets built.
 pkgver() {
   cd "$pkgname"
-  local rev
-  rev=$(scripts/source-rev.sh)
-  printf 'r%s.%s' "$(git rev-list --count "$rev")" "$(git rev-parse --short "$rev")"
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 prepare() {
