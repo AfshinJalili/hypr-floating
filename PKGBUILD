@@ -33,5 +33,6 @@ build() {
 
 package() {
   install -Dm755 build/hypr-floating.so "$pkgdir/usr/lib/hypr-floating/hypr-floating.so"
+  install -Dm644 "$pkgname/lua/omarchy.lua" "$pkgdir/usr/lib/hypr-floating/omarchy.lua"
   install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

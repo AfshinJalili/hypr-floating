@@ -2,7 +2,8 @@
 -- plugin, in a nested Hyprland. Nothing of Omarchy's autostart, bindings or services is loaded.
 --   XDG_STATE_HOME  a directory with omarchy/workspace-layouts/*.lua, as Omarchy saves them
 --   PLUGINS         .so files to load, space-separated
---   USER_LUA        a file run after Omarchy's modules: the user's own lines of hyprland.lua
+--   USER_LUA        a file run after Omarchy's modules and before its saved layouts load, where
+--                   hyprland.lua has its own lines before require("default.hypr.toggles")
 for name in pairs(package.loaded) do
   if name == "hypr" or name:find("^hypr%.") or name:find("^default%.hypr") then
     package.loaded[name] = nil
@@ -22,7 +23,7 @@ require("default.hypr.windows")
 for path in (os.getenv("PLUGINS") or ""):gmatch("%S+") do
   pcall(hl.plugin.load, path)
 end
-require("default.hypr.workspace-layouts")
 if os.getenv("USER_LUA") and os.getenv("USER_LUA") ~= "" then
   dofile(os.getenv("USER_LUA"))
 end
+require("default.hypr.workspace-layouts")

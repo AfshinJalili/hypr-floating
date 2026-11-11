@@ -1,6 +1,7 @@
 #!/bin/bash
 # Build the plugin for the Hyprland installed now and install it to
-# ~/.local/lib/hypr-floating/hypr-floating.so, where hyprland.lua loads it from.
+# ~/.local/lib/hypr-floating/hypr-floating.so, where hyprland.lua loads it from, with
+# lua/omarchy.lua beside it as omarchy.lua.
 #
 # The sources are the commit hyprpm.toml pins for this Hyprland (the hyprland-0.56 branch for
 # 0.56.x), otherwise main (scripts/source-rev.sh). --worktree builds the working tree instead,
@@ -36,5 +37,6 @@ mkdir -p "$DEST"
 # a loaded library in place can crash it.
 rm -f "$DEST/hypr-floating.so"
 cp "$src/build/hypr-floating.so" "$DEST/"
-echo "hypr-floating: installed to $DEST/hypr-floating.so; it loads at the next login"
+cp "$src/lua/omarchy.lua" "$DEST/"
+echo "hypr-floating: installed to $DEST/hypr-floating.so (and omarchy.lua); it loads at the next login"
 echo "hypr-floating: load it from hyprland.lua (see the README)"

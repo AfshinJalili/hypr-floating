@@ -37,7 +37,7 @@ test/run-unload.sh $PWD/build/hypr-floating.so  # unload and reload in a nested 
 test/run-with-plugins.sh $PWD/build/hypr-floating.so ~/.local/lib/omarchy-macos/omarchy-macos-titlebars.so ~/.local/lib/omarchy-macos/omarchy-macos-mission-control.so
 test/run-floating.sh $PWD/build/hypr-floating.so          # the floating layout: open, switch, toggle, fullscreen, groups, move, unload, monitors, tags
 test/run-floating-plugins.sh $PWD/build/hypr-floating.so  # ... with the titlebars and Mission Control plugins
-test/run-omarchy.sh $PWD/build/hypr-floating.so           # ... next to Omarchy's own Lua, and examples/omarchy.lua
+test/run-omarchy.sh $PWD/build/hypr-floating.so           # ... on Omarchy's own Lua and scripts (toggle, bar, minimize) with lua/omarchy.lua
 spec/check.sh                                   # TLC on spec/Stacking.tla and spec/Floating.tla, and the variants that must fail (downloads Java and TLC once)
 ```
 
@@ -50,7 +50,9 @@ The nested tests print PASS or FAIL per check and exit non-zero on any FAIL. Eac
 - A window hidden behind full screen that is focused loses focus.
 - A click raises the window the pointer was last over until the pointer moves; the tests move the pointer first.
 - Hyprland removes a plugin's function hooks when it unloads it.
-- Omarchy's Lua (`workspace-modes.lua`) tiles any window with `omarchy-mode-floated` on a workspace it does not float and strips `omarchy-floating-workspace` from it: the layout's tags must only be taken back from windows it set them on, and `omarchy_tags = 0` is the way out when Omarchy's Lua is in the way.
+- Omarchy's Lua (`workspace-modes.lua`) floats and tiles windows itself for its floating mode, and tiles any window with `omarchy-mode-floated` on a workspace it does not float. `lua/omarchy.lua` replaces `o.workspace_mode` before the saved layouts load, so that machinery never acts; it reaches Omarchy's `set_up_floating` (titlebars, theme, shadows) as an upvalue of the original `o.workspace_mode`.
+- `hl.workspace_rule` at runtime switches an existing workspace's layout right after the Lua call returns, not within it: read `tiled_layout` from a timer.
+- Omarchy's scripts that the tests run refresh the host's bar and send notifications (`omarchy-shell`, `omarchy-notification-send`): `test/run-omarchy.sh` stubs them, and points `XDG_STATE_HOME` at a scratch directory.
 - Callbacks that change windows run in `doLater` (`ModeSync::syncLater`), never inside the event that announced the change: a move is still being committed then. `ModeSync::stop` cancels the pending one before unload.
 - Every change of a workspace's layout goes through `CAlgorithm::updateTiledAlgo` (hooked in `floatingLayout.cpp`); while it runs, the new algorithm gets the old one's tiled targets, and floating one then erases it from the list being walked.
 - On unload Hyprland calls `PLUGIN_EXIT`, then unregisters the plugin's layouts (switching workspaces through the hooked `updateTiledAlgo`), and only then removes the plugin's hooks: a hook must still work after `PLUGIN_EXIT`.
