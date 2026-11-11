@@ -29,6 +29,12 @@ hl.window_rule({ match = { class = "^F" }, float = true })
 dofile("$ROOT/lua/omarchy.lua")
 EOF
 
+# ... and the same with input:follow_mouse left to the user, as this user's hyprland.lua wants it
+cat >"$TMP/user-hover.lua" <<EOF
+hl.window_rule({ match = { class = "^F" }, float = true })
+loadfile("$ROOT/lua/omarchy.lua")({ follow_mouse = false })
+EOF
+
 # state <name>: a saved-layouts directory as this user has it: workspace 1 dwindle, the default floating
 state() {
   mkdir -p "$TMP/$1/omarchy/workspace-layouts"
@@ -162,10 +168,11 @@ scenario_moves() {
 }
 
 scenario_reload() {
-  echo "== reload: the user's state (default floating, workspace 1 dwindle) survives a reload"
+  echo "== reload: the user's state (default floating, workspace 1 dwindle) survives a reload; follow_mouse left alone"
   state reload
-  start omarchy-reload reload "$TMP/user.lua"
+  start omarchy-reload reload "$TMP/user-hover.lua"
   workspace 2; open_class A; open_class B; float_off B
+  expect "{ follow_mouse = false }: focus still follows the pointer on the floating workspace" "$(follow_mouse)" 1
   workspace 1; open_class C
   hyprctl reload >/dev/null; sleep 2
   expect "no config errors after the reload" "$(hyprctl configerrors | tr -d '[:space:]')" ""

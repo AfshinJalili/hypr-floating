@@ -151,7 +151,7 @@ plugin {
 - It replaces `o.workspace_mode`, which Omarchy's toggle (`omarchy-hyprland-workspace-layout-toggle`, Super + L, the bar's layout button), its default layout (`omarchy-hyprland-workspace-layout-default`) and its saved layouts (`~/.local/state/omarchy/workspace-layouts/`) all go through. `mode = "floating"` gives the workspace the layout `floating`, dwindle and scrolling give it theirs, and `default = "floating"` sets `general:layout` to `floating`. Omarchy's Lua floating mode then never acts on a workspace.
 - The toggle still saves the mode in those files, and the bar and the dock read it from there (`omarchy-hyprland-workspace-layout-current`), so they show what the workspace is.
 - What a floating workspace looks like is Omarchy's own setup (shadows, opaque windows, its titlebars in the theme's colours, or omarchy-macos's), pointed at the plugin's `hypr-floating-workspace` tag.
-- On a floating workspace focus follows clicks (`input:follow_mouse = 0`), and your own setting is back on any other, as in Omarchy's floating mode.
+- On a floating workspace focus follows clicks (`input:follow_mouse = 0`), and your own setting is back on any other, as in Omarchy's floating mode. To leave `follow_mouse` to your own config, load it with `loadfile(path)({ follow_mouse = false })` instead of `dofile(path)`.
 - A window opening on a floating workspace brings a maximized window there back to its size, as in Omarchy's floating mode.
 - Minimizing (`omarchy-hyprland-window-minimize`) works as before; a window coming back from the dock takes its workspace's mode then.
 
