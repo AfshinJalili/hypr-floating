@@ -2,20 +2,20 @@
 
 A Hyprland plugin for floating windows, in two parts:
 
-- **A `floating` workspace layout.** A workspace whose layout is `floating` floats every window natively: new windows open centred with a cascade, and tile again when the workspace stops floating or the plugin unloads.
+- **A `floating` workspace layout.** A workspace whose layout is `floating` floats every window natively: new windows open centred with a cascade. A workspace's layout is the truth for its windows: they all tile when it changes to a tiled layout, all float when it changes back, and a window carried to another workspace takes that one's.
 - **A stacking fix.** A floating window drawn over a full-screen window takes the clicks.
 
 ## The floating layout
 
-A workspace with the layout `floating` floats every window it holds.
+A workspace's layout (its mode) decides whether its windows float: a window floats exactly when its workspace's layout is `floating` or it **floats by its own nature**, that is, Hyprland floated it as it opened (a dialog, a transient or fixed-size window) or a window rule floats it. Those float everywhere and are never tiled by the plugin.
 
 - A new window opens floating, 64% x 68% of the monitor's work area (at most 1100 x 760), centred, then stepped diagonally in five 24 px steps so windows opened one after another do not sit exactly on each other.
-- Windows the layout floated are its **claimed** windows. When the workspace gets another layout, when a window is carried to a workspace that does not float, or when the plugin unloads, exactly those tile again. A window that floats on its own (a window rule, a dialog, your `togglefloating`) is never claimed, so it stays floating.
-- Un-floating a window on a floating workspace (`togglefloating`) sticks: it is tiled, unclaimed, with the geometry dwindle gives it, and new windows still float beside it. Floating it again makes it floating and unclaimed.
-- A group floats, tiles and floats again as one; every member gets the claim and the tags.
-- Full-screen and maximized windows are left as they are and restore their geometry. The stacking fix below applies to them.
-- Special workspaces (the scratchpad) keep whatever state a window arrived with.
-- Unloading the plugin (also in the middle of a layout change or a window opening) tiles the claimed windows first, so the session lives and nothing stays floated.
+- The mode reaches a window when its workspace's layout changes (between any two layouts: dwindle to scrolling tiles a window you floated by hand too), when it opens, when it is carried to another workspace (a dispatcher, a Mission Control drop, another monitor, coming back from Omarchy's minimized windows), and when it leaves full screen or maximized. Every window of the workspace then floats or tiles together, whoever floated or tiled it before: the layout, you, or a script.
+- In between, `togglefloating` works on any window: un-floating one on a floating workspace tiles it with the geometry dwindle gives it, and new windows still float beside it. That holds until the mode next reaches the window.
+- A group floats and tiles as one; it floats on its own if one of its windows does.
+- Full-screen and maximized windows are left as they are while they are, and restore their geometry. The stacking fix below applies to them.
+- Pinned windows, and windows on special workspaces (the scratchpad, Omarchy's minimized windows), keep whatever state they have.
+- Unloading the plugin (also in the middle of a layout change or a window opening) tiles the windows of floating workspaces first, but those that float on their own, so the session lives and nothing stays floated.
 
 It is a tiled algorithm of Hyprland's own layout system, so everything that picks a layout picks it: a workspace rule, `general:layout`, a live `hl.workspace_rule`.
 
@@ -36,18 +36,9 @@ general {
 
 The rule can change while Hyprland runs (`hyprctl eval 'hl.workspace_rule({ workspace = "2", layout = "dwindle" })'`): the workspace floats or tiles at once.
 
-### Tags
+### The mark
 
-The layout tags windows, with tags a window rule can match (`o.window({ tag = ... }, ...)` in Omarchy, `tag:` in a rule):
-
-| Tag | On |
-|---|---|
-| `hypr-floating-workspace` | every window of a floating workspace |
-| `hypr-floating-claimed` | the windows the layout floated |
-| `omarchy-floating-workspace` | the same as `hypr-floating-workspace`, with `omarchy_tags` on: what Omarchy's titlebars, shadows and opacity follow |
-| `omarchy-mode-floated` | the same as `hypr-floating-claimed`, with `omarchy_tags` on: Omarchy's own mark of a window its floating mode floated |
-
-The Omarchy tags are copies. The layout takes them back only from windows it set them on.
+Every window of a floating workspace carries the tag `hypr-floating-workspace`, which a window rule can match (`o.window({ tag = ... }, ...)` in Omarchy, `tag:` in a rule): titlebars, opacity and shadows can follow it. A window carried away loses it.
 
 ## The stacking fix
 
@@ -140,17 +131,15 @@ This produces `build/hypr-floating.so`. Build against the headers of the Hyprlan
 | Option | Default | Does |
 |---|---|---|
 | `plugin:hypr_floating:stacking_fix` | `1` | `0` turns the stacking fix off: Hyprland behaves as stock, including the bug |
-| `plugin:hypr_floating:omarchy_tags` | `1` | `0` leaves the `omarchy-*` tags out (the `hypr-floating-*` tags stay) |
 
 ```lua
-hl.config({ plugin = { hypr_floating = { stacking_fix = 1, omarchy_tags = 1 } } })
+hl.config({ plugin = { hypr_floating = { stacking_fix = 1 } } })
 ```
 
 ```ini
 plugin {
     hypr_floating {
         stacking_fix = 1
-        omarchy_tags = 1
     }
 }
 ```
@@ -213,8 +202,8 @@ The plugin loads next to the omarchy-macos titlebars and Mission Control plugins
 |---|---|
 | `src/stacking.{hpp,cpp}` | The stacking rule, as plain values in and out; no Hyprland |
 | `src/stackingFix.{hpp,cpp}` | Applies it: hooks `CWindowState::moveToZ`, listens to window events |
-| `src/floating.{hpp,cpp}` | The floating layout's bookkeeping (placement, claims, marks), plain values; no Hyprland |
-| `src/layout/` | The layout on Hyprland: `floatingAlgo` (the tiled algorithm), `modeSync` (claims and tags on windows), `floatingLayout` (install, events) |
+| `src/floating.{hpp,cpp}` | The floating layout's rule (placement, what the mode asks of a window, the mark), plain values; no Hyprland |
+| `src/layout/` | The layout on Hyprland: `floatingAlgo` (the tiled algorithm), `modeSync` (applies the mode and the mark to windows), `floatingLayout` (install, the events and the layout-change hook that tell `modeSync`) |
 | `src/compat.hpp` | The calls that differ between Hyprland versions |
 | `src/config.{hpp,cpp}`, `src/main.cpp` | Options and the plugin entry points |
 | `test/unit/` | Unit tests (CTest) |

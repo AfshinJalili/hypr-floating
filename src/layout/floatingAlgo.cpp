@@ -7,7 +7,6 @@
 #include <hyprland/src/layout/algorithm/tiled/dwindle/DwindleAlgorithm.hpp>
 #include <hyprland/src/layout/space/Space.hpp>
 #include <hyprland/src/layout/target/Target.hpp>
-#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 
 namespace HyprFloating::FloatingAlgo {
 
@@ -15,17 +14,12 @@ using namespace Floating;
 
 namespace {
 
-// Floats every window that reaches it, except the ones the user keeps tiled by
-// un-floating them (and a full-screen one). Those are tiled the way dwindle tiles
-// them, so a user's togglefloating on a floating workspace sticks and is laid out
-// sensibly: only such windows ever reach the dwindle half.
+// Floats every window that reaches it, except one the user un-floats here and a
+// full-screen one: those are tiled the way dwindle tiles them, so a user's
+// togglefloating on a floating workspace holds (until the mode next reaches the
+// window) and is laid out sensibly. Only such windows ever reach the dwindle half.
 class CFloatingAlgorithm : public ::Layout::Tiled::CDwindleAlgorithm {
   public:
-    ~CFloatingAlgorithm() override {
-        // The workspace has another layout now (or is going away): give back what we floated.
-        ModeSync::syncLater();
-    }
-
     void newTarget(SP<::Layout::ITarget> target) override {
         arrive(target, eArrival::ARRIVED, std::nullopt);
     }
@@ -65,25 +59,16 @@ class CFloatingAlgorithm : public ::Layout::Tiled::CDwindleAlgorithm {
     }
 
     void arrive(const SP<::Layout::ITarget>& target, eArrival how, std::optional<Vector2D> focalPoint) {
-        const auto W  = target->window();
-        const auto FS = W && Fullscreen::controller()->isFullscreen(W);
-
+        const auto W = target->window();
         const auto P = m_parent.lock();
-        if (onArrival(how, FS) == eArrivalVerdict::TILE || !P) {
+        // While Hyprland switches the workspace to this layout it walks the old layout's
+        // tiled targets, and floating one now would erase it from that list: the switch's
+        // own sync (ModeSync::layoutChanged) floats it a tick later.
+        if (!W || !P || !P->space() || P->tiledAlgo().get() != this || ModeSync::onArrival(W, P->space()->workspace(), how) != eAction::FLOAT) {
             tile(target, how, focalPoint);
-            ModeSync::sync(target);
             return;
         }
-
-        // Hyprland is switching the workspace to this layout: it is walking the old
-        // layout's tiled targets, and floating one now would erase it from that list.
-        if (P->tiledAlgo().get() != this) {
-            tile(target, how, focalPoint);
-            ModeSync::claimLater(target);
-            return;
-        }
-
-        ModeSync::claim(P, target);
+        ModeSync::floatTarget(P, target);
     }
 };
 

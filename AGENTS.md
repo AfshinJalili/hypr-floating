@@ -52,4 +52,7 @@ The nested tests print PASS or FAIL per check and exit non-zero on any FAIL. Eac
 - Hyprland removes a plugin's function hooks when it unloads it.
 - Omarchy's Lua (`workspace-modes.lua`) tiles any window with `omarchy-mode-floated` on a workspace it does not float and strips `omarchy-floating-workspace` from it: the layout's tags must only be taken back from windows it set them on, and `omarchy_tags = 0` is the way out when Omarchy's Lua is in the way.
 - Callbacks that change windows run in `doLater` (`ModeSync::syncLater`), never inside the event that announced the change: a move is still being committed then. `ModeSync::stop` cancels the pending one before unload.
+- Every change of a workspace's layout goes through `CAlgorithm::updateTiledAlgo` (hooked in `floatingLayout.cpp`); while it runs, the new algorithm gets the old one's tiled targets, and floating one then erases it from the list being walked.
+- On unload Hyprland calls `PLUGIN_EXIT`, then unregisters the plugin's layouts (switching workspaces through the hooked `updateTiledAlgo`), and only then removes the plugin's hooks: a hook must still work after `PLUGIN_EXIT`.
+- A window "floats by its own nature" when Hyprland floated it as it mapped (`m_requestsFloat` on 0.56, `suggestsFloat()` on 0.57) or a static window rule floats it (`static_.floating`).
 - `-fno-gnu-unique` is load-bearing: without it a same-path unload and load keeps the old image.

@@ -21,17 +21,21 @@ int nextCascade(int cascade) {
     return (cascade + 1) % CASCADE_STEPS;
 }
 
-eArrivalVerdict onArrival(eArrival how, bool fullscreen) {
-    return how == eArrival::TOGGLED || fullscreen ? eArrivalVerdict::TILE : eArrivalVerdict::CLAIM;
+eAction applyMode(const SWindow& w) {
+    if (w.workspace == eWorkspace::SPECIAL || w.pinned || w.fullscreen)
+        return eAction::KEEP;
+    const bool WANTS = w.ownFloat || w.workspace == eWorkspace::FLOATING;
+    if (WANTS == w.floating)
+        return eAction::KEEP;
+    return WANTS ? eAction::FLOAT : eAction::TILE;
 }
 
-SSync sync(const SWindow& w) {
-    switch (w.workspace) {
-        case eWorkspace::SPECIAL: return {.retile = false, .claimed = w.claimed, .marked = w.marked};
-        case eWorkspace::FLOATING: return {.claimed = w.claimed && w.floating, .marked = true};
-        case eWorkspace::TILED: break;
-    }
-    return {.retile = w.claimed && w.floating && !w.pinned};
+eAction onArrival(eArrival how, const SWindow& w) {
+    return how == eArrival::TOGGLED ? eAction::KEEP : applyMode(w);
+}
+
+bool marked(eWorkspace workspace, bool wasMarked) {
+    return workspace == eWorkspace::FLOATING || (workspace == eWorkspace::SPECIAL && wasMarked);
 }
 
 } // namespace HyprFloating::Floating

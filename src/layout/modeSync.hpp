@@ -1,11 +1,9 @@
-// Which windows the floating layout floated ("claimed"), and what follows from it:
-// tiling them again, and the tags. The decisions are src/floating.hpp's; this applies
-// them to Hyprland's windows.
-//
-// A claim is a tag on the window (CLAIM_TAG), so it lives and dies with the window,
-// follows it between workspaces and survives a config reload, with or without the
-// Omarchy tags.
+// Brings Hyprland's windows in line with their workspace's mode: the decisions are
+// src/floating.hpp's; this applies them, and keeps the layout's mark (a tag titlebars and
+// opacity follow) on the windows of floating workspaces.
 #pragma once
+
+#include "../floating.hpp"
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/memory/Memory.hpp>
@@ -17,25 +15,25 @@ namespace Layout {
 
 namespace HyprFloating::ModeSync {
 
-// Float a tiled target and claim every window of it (a group floats as one).
-void claim(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target);
+// What the mode asks of a tiled window reaching the floating layout of ws.
+Floating::eAction onArrival(const PHLWINDOW& w, const PHLWORKSPACE& ws, Floating::eArrival how);
 
-// The layout is being switched to and cannot float the target yet: claim it at the next sync.
-void claimLater(const SP<::Layout::ITarget>& target);
+// Float a tiled target where the layout opens a window (a group floats as one).
+void floatTarget(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target);
 
-// A window opened. One that joined a group never reached the layout, so it takes the
-// group's claim: a group is floated or tiled as one. Its tags are set.
-void opened(const PHLWINDOW& w);
+// The mode reaches every window of ws: its layout changed.
+void layoutChanged(const PHLWORKSPACE& ws);
 
-// Bring the windows of a target in line with their workspace: a window the user kept
-// tiled loses its claim, and the tags follow.
-void sync(const SP<::Layout::ITarget>& target);
+// The mode reaches w: it opened, moved to another workspace, left full screen, or a window
+// of its group closed.
+void reached(const PHLWINDOW& w);
 
-// Every window against its workspace: tile again what is claimed on a workspace that no
-// longer floats, set the tags. Runs once the change that needs it has landed.
+// Bring the marks in line, and apply what is pending, once the change that asked for it
+// has landed.
 void syncLater();
 
-// Before the plugin unloads: cancel what is pending and tile again every claimed window.
+// Before the plugin unloads: cancel what is pending, tile the windows of floating
+// workspaces (but those that float by their own nature) and take the marks back.
 void stop();
 
 // Whether the workspace's layout is the floating layout.
