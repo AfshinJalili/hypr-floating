@@ -4,6 +4,9 @@ authors = ["Afshin Jalili"]
 # Hyprland commit -> commit whose sources build against it. Hyprland versions
 # not listed build main (0.57). The hyprland-0.56 branch carries the 0.56 sources.
 commit_pins = [
+    ["36b2e0cfe0c6094dbc47bd42a437431315bb3087", "c88c9c6d4a60486a16113e9d5e82ab7478fe0122"], # 0.56.0
+    ["5c9377c15f85c50648f35ca5a213754f95b93ca0", "c88c9c6d4a60486a16113e9d5e82ab7478fe0122"], # 0.56.1
+    ["efb50993780079460b0cbed1363e2166a2de1d9f", "c88c9c6d4a60486a16113e9d5e82ab7478fe0122"], # 0.56.2
 ]
 
 [hypr-floating]
