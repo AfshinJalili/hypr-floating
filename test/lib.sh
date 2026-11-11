@@ -26,13 +26,22 @@ session_stop() { nested_stop; }
 
 run() { hyprctl eval "$1" >/dev/null; sleep "${2:-0.6}"; }
 
+# wait_until <seconds> <command...>: poll until the command succeeds
+wait_until() { local n=$(($1 * 10)); shift; while ((n-- > 0)); do "$@" && return 0; sleep 0.1; done; return 1; }
+has_class() { hyprctl clients -j | jq -e --arg c "$1" 'any(.[]; .class == $c and .mapped)' >/dev/null; }
+no_class() { ! has_class "$1"; }
+
 # open <class> <colour>: a floating (or, for class T, tiled) foot window of one colour
-open() { run "hl.dispatch(hl.dsp.exec_cmd(\"foot --app-id $1 -o colors-dark.background=$2 -o colors-light.background=$2 -o colors-dark.alpha=1 -o colors-light.alpha=1 sleep 600\"))" 1.2; }
+open() {
+  run "hl.dispatch(hl.dsp.exec_cmd(\"foot --app-id $1 -o colors-dark.background=$2 -o colors-light.background=$2 -o colors-dark.alpha=1 -o colors-light.alpha=1 sleep 600\"))" 0.1
+  wait_until 15 has_class "$1" || echo "WARN: $1 did not open"
+  sleep 0.8
+}
 colour() { case $1 in A) echo ff0000;; B) echo 0000ff;; C) echo 00ff00;; P) echo ff00ff;; T) echo ffff00;; esac; }
 open_class() { open "$1" "$(colour "$1")"; }
 focus_class() { run "hl.dispatch(hl.dsp.focus({ window = \"class:^$1\$\" }))"; }
 fullscreen() { run "hl.dispatch(hl.dsp.window.fullscreen({ mode = \"$1\", window = \"class:^$2\$\" }))"; } # <mode> <class>
-close_class() { run "hl.dispatch(hl.dsp.window.close({ window = \"class:^$1\$\" }))"; }
+close_class() { run "hl.dispatch(hl.dsp.window.close({ window = \"class:^$1\$\" }))" 0.1; wait_until 10 no_class "$1" || echo "WARN: $1 did not close"; sleep 0.5; }
 focused() { hyprctl activewindow -j | jq -r '.class // "none"'; }
 
 # spot <class>: a point 60px inside the window's top left corner
