@@ -5,7 +5,7 @@
 # layout toggle, the bar's reading of the layout, minimizing) run against the nested session,
 # with XDG_STATE_HOME in a scratch directory and the bar and notifications stubbed out.
 # Usage: test/run-omarchy.sh <hypr-floating.so> [mission-control.so] [scenario ...]
-#   scenarios: lua cycle moves reload (default: all)
+#   scenarios: lua switch cycle moves reload (default: all)
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 SO="$(realpath "${1:?usage: run-omarchy.sh <hypr-floating.so> [mission-control.so] [scenario ...]}")"; shift
@@ -80,6 +80,27 @@ scenario_lua() {
 
 # expect_all <what> <expected desc> <class ...>
 expect_all() { local c; for c in "${@:3}"; do expect_desc "$c" "$2" "$1: $c"; done; }
+
+scenario_switch() {
+  echo "== switch: a window Omarchy's own floating mode opened floating takes the plugin's modes once lua/omarchy.lua is in"
+  state switch
+  printf 'hl.window_rule({ match = { class = "^F" }, float = true })\n' >"$TMP/switch.lua"
+  start omarchy-switch switch "$TMP/switch.lua"
+  workspace 2; open_class A; open_class F
+  expect "Omarchy's own mode floats A as it opens, with a rule matching workspace 2" "$(win A | jq -r .floating)" true
+  cp "$TMP/user.lua" "$TMP/switch.lua"
+  hyprctl reload >/dev/null; sleep 2
+  expect "no config errors after the switch" "$(hyprctl configerrors | tr -d '[:space:]')" ""
+  expect "workspace 2 has the plugin's layout" "$(layout_of 2)" floating
+  expect_desc A "$FLOATS" "after the switch: A floats on the floating workspace 2"
+  move_to A 1
+  expect_desc A tiled "A carried to the dwindle workspace 1: it tiles (the rule that floated it as it opened matches no longer)"
+  move_to A 2; move_to A 1
+  expect_desc A tiled "and again"
+  move_to F 1
+  expect_desc F floating "F, floated by an app's rule, stays floating on workspace 1"
+  alive; session_stop
+}
 
 scenario_cycle() {
   echo "== cycle: Omarchy's layout toggle on a floating workspace, every window together, one press each"
@@ -190,7 +211,7 @@ scenario_reload() {
   alive; session_stop
 }
 
-SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(lua cycle moves reload)
+SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(lua switch cycle moves reload)
 for s in "${SCENARIOS[@]}"; do "scenario_$s"; done
 
 host_guard_end

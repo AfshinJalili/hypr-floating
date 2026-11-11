@@ -57,6 +57,20 @@ int main() {
     full.fullscreen = true;
     check(applyMode(full) == KEEP, "a full-screen tiled window on a floating workspace: left as it is");
 
+    // --- floating by its own nature
+    check(floatsOnItsOwn({.requested = true}), "a dialog, a transient, a fixed-size window: floats on its own");
+    check(floatsOnItsOwn({.rules = true}), "a window rule that matches it now floats it (an app's float rule): floats on its own");
+    check(!floatsOnItsOwn({}), "no rule matches it now (one scoped to the workspace it opened on, or since removed): does not");
+    check(!floatsOnItsOwn({.rules = false}), "a rule tiles it: does not");
+    check(floatsOnItsOwn({.launchRule = true}), "launched with [float]: floats on its own, though Hyprland dropped the rule");
+    check(!floatsOnItsOwn({.launchRule = false, .rules = true}), "launched with [tile] over a float rule: the launch rule is read last, as Hyprland reads it");
+    check(floatsOnItsOwn({.requested = true, .launchRule = false}), "a dialog launched with [tile]: still floats on its own");
+    check(launchRule(true, std::nullopt) == true, "Hyprland read float, no registered rule says so: a launch rule floated it");
+    check(launchRule(false, true) == false, "Hyprland read tile over a float rule: a launch rule tiled it");
+    check(launchRule(true, true) == std::nullopt, "Hyprland read what the registered rules say (a workspace's float rule): nothing to keep");
+    check(launchRule(std::nullopt, std::nullopt) == std::nullopt, "no rule at all: nothing to keep");
+    check(launchRule(std::nullopt, true) == std::nullopt, "a rule matches only since it mapped: not a launch rule");
+
     // --- a tiled window reaching the floating layout
     check(onArrival(eArrival::ARRIVED, window(FLOATING, false)) == FLOAT, "a new window, one carried in, one there as the workspace starts floating: floats");
     check(onArrival(eArrival::TOGGLED, window(FLOATING, false)) == KEEP, "the user un-floated it here: stays tiled until the mode next reaches it");
