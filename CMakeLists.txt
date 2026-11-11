@@ -28,7 +28,7 @@ if(HYPR_FLOATING_PLUGIN)
   pkg_check_modules(deps REQUIRED IMPORTED_TARGET hyprland cairo libdrm libinput libudev pixman-1 wayland-server xkbcommon)
 
   # Built as hypr-floating.so (no lib prefix). 
-  add_library(hypr-floating SHARED src/main.cpp src/config.cpp src/stackingFix.cpp src/layout/modeSync.cpp src/layout/floatingAlgo.cpp src/layout/floatingLayout.cpp)
+  add_library(hypr-floating SHARED src/main.cpp src/config.cpp src/stackingFix.cpp src/layout/modeSync.cpp src/layout/ownFloat.cpp src/layout/floatingAlgo.cpp src/layout/floatingLayout.cpp)
   set_target_properties(hypr-floating PROPERTIES PREFIX "" POSITION_INDEPENDENT_CODE ON)
   # -fno-gnu-unique: otherwise glibc marks the .so NODELETE, and a plugin unload
   # followed by a load of the same path returns the old image.

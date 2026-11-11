@@ -34,10 +34,9 @@ inline void setAllowedOverFullscreen(const PHLWINDOW& w, bool allowed) {
     w->fullscreenPolicy().setAllowedOverFullscreen(allowed);
 }
 
-// Floats by its own nature: Hyprland floated it as it mapped (a dialog, a transient, a fixed
-// size), or a window rule floats it.
-inline bool floatsOnItsOwn(const PHLWINDOW& w) {
-    return w->suggestsFloat() || w->m_ruleApplicator->static_.floating.value_or(false);
+// Hyprland floated it as it mapped: a dialog, a transient, a fixed size.
+inline bool requestsFloat(const PHLWINDOW& w) {
+    return w->suggestsFloat();
 }
 
 inline bool special(const PHLWORKSPACE& ws) {
