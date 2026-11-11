@@ -6,6 +6,7 @@
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/workspace/HLWorkspace.hpp>
 #include <hyprland/src/desktop/view/window/WindowFullscreenPolicy.hpp>
+#include <hyprland/src/desktop/view/window/WindowGroupMembership.hpp>
 #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 
 #include <vector>
@@ -51,6 +52,11 @@ inline std::vector<PHLWINDOW> groupMembers(const PHLWINDOW& w) {
             members.push_back(m);
     }
     return members;
+}
+
+// Recompute what a window's tags change: its opacity, shadow, border and decorations.
+inline void refreshAfterTagChange(const PHLWINDOW& w) {
+    w->presentation().refreshValues();
 }
 
 // The fade that hides a window behind full screen: what CWindowState::moveToZ sets.
