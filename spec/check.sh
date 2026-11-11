@@ -1,7 +1,7 @@
 #!/bin/bash
-# Check spec/Stacking.tla with TLC, and that the variants without the plugin's rules
-# fail the way the model says they do.
-# Usage: spec/check.sh [--big]     --big also checks four windows (about 500k states)
+# Check spec/Stacking.tla and spec/Floating.tla with TLC, and that the variants without
+# the plugin's rules fail the way the models say they do.
+# Usage: spec/check.sh [--big]     --big also checks four windows of Stacking (about 500k states)
 # Needs Java and tla2tools.jar: downloaded once into ~/.local/share/hypr-floating-tools/
 # (a Temurin JRE, and TLC from tlaplus/tlaplus), each checked against a pinned sha256.
 set -uo pipefail
@@ -28,11 +28,11 @@ JAVA="$TOOLS/jre/bin/java"
 FAILED=0
 META="$(mktemp -d)"; trap 'rm -rf "$META"' EXIT
 
-# tlc <cfg> <expected exit code> <description>
+# tlc <module> <cfg> <expected exit code> <description>
 #   0: no error found, 12: an invariant is violated, 13: a temporal property is violated
 tlc() {
-  local cfg="$1" want="$2" what="$3" out rc
-  out="$("$JAVA" -XX:+UseParallelGC -Xmx4g -cp "$TOOLS/dl/tla2tools.jar" tlc2.TLC -workers auto -metadir "$META/$cfg" -config "$HERE/$cfg.cfg" "$HERE/Stacking.tla" 2>&1)"
+  local module="$1" cfg="$2" want="$3" what="$4" out rc
+  out="$("$JAVA" -XX:+UseParallelGC -Xmx4g -cp "$TOOLS/dl/tla2tools.jar" tlc2.TLC -workers auto -metadir "$META/$cfg" -config "$HERE/$cfg.cfg" "$HERE/$module.tla" 2>&1)"
   rc=$?
   echo "== $cfg: $what"
   echo "$out" | grep -E "^(Error:|Model checking completed|[0-9]+ states generated)" | head -4
@@ -41,12 +41,12 @@ tlc() {
   [[ ${SHOW_TRACE:-0} == 1 && $want != 0 ]] && echo "$out" | sed -n '/^Error: The behavior/,/^[0-9]* states generated/p'
 }
 
-tlc Stacking            0  "both rules: every property holds (3 windows)"
-tlc Stacking_stock      12 "stock Hyprland: the bug, a window drawn over full screen whose clicks go to the full-screen window"
-tlc Stacking_stock_top  12 "stock Hyprland: what is on top is not what the click reaches"
-tlc Stacking_stock_above 12 "stock Hyprland: a window stacked above the full-screen window is hidden"
-tlc Stacking_rule1      12 "rule 1 without rule 2: a window focused below the full-screen window is hidden and loses focus"
-[[ ${1:-} == --big ]] && tlc Stacking_4 0 "both rules, 4 windows"
+tlc Stacking Stacking            0  "both rules: every property holds (3 windows)"
+tlc Stacking Stacking_stock      12 "stock Hyprland: the bug, a window drawn over full screen whose clicks go to the full-screen window"
+tlc Stacking Stacking_stock_top  12 "stock Hyprland: what is on top is not what the click reaches"
+tlc Stacking Stacking_stock_above 12 "stock Hyprland: a window stacked above the full-screen window is hidden"
+tlc Stacking Stacking_rule1      12 "rule 1 without rule 2: a window focused below the full-screen window is hidden and loses focus"
+[[ ${1:-} == --big ]] && tlc Stacking Stacking_4 0 "both rules, 4 windows"
 
 [[ $FAILED == 0 ]] && echo "all as expected" || echo "unexpected results"
 exit $FAILED
