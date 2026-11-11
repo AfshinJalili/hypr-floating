@@ -132,7 +132,7 @@ The model is only as good as its reading of Hyprland, which `test/run-click.sh` 
 
 # The floating layout: the workspace's mode is the truth
 
-`Floating.tla` models what `src/floating.hpp` decides: whether a window floats, given its workspace's mode, and when the plugin applies that. TLC checks it for three windows on two workspaces, the special workspace minimized windows wait on, and one group (about 2.2 million distinct states, under a minute).
+`Floating.tla` models what `src/floating.hpp` decides: whether a window floats, given its workspace's mode, and when the plugin applies that. TLC checks it for three windows on two workspaces, the special workspace minimized windows wait on, and one group (about 17.5 million distinct states, about seven minutes on 16 cores).
 
 ```sh
 spec/check.sh         # also runs this model, and the variants below
@@ -141,11 +141,11 @@ spec/check.sh         # also runs this model, and the variants below
 ## The model
 
 - A workspace has a requested layout, `"floating"` or `"tiled"` (any of Hyprland's own), and floats its windows only while the plugin is loaded.
-- A window wants to float when it floats by its own nature (`own`: a float rule, a dialog; fixed as it opens) or its workspace floats. A group is one layout target: it floats on its own if a member does.
+- A window wants to float when it floats by its own nature where it is, or its workspace floats. `own` is, per window, the workspaces where it floats by its own nature, fixed as it opens: all of them for a dialog or an app's float rule, some for a rule matched by workspace (as Omarchy's own floating mode floats a workspace), none for the rest. A group is one layout target: it floats on its own if a member does.
 - `Reach` is the one place that floats and tiles: the mode reaches a window when its workspace's layout changes, it opens, it moves (a dispatcher, a Mission Control drop, another monitor, minimizing and coming back), it leaves full screen, a window of its group closes, the plugin loads or unloads. A full-screen window and one on the special workspace are left as they are.
 - In between, the user may float or tile any window by hand. `toggled` is a ghost only the model sees: the user toggled the window since the mode last reached it.
 - `claimed` is what the old plugin knew, the windows the layout floated; only the `"claimed"` variant reads it.
-- `Variant` switches rules off, to show each one is needed: `"full"` (all on), `"claimed"`, `"nomove"`, `"noexit"`, `"all"`.
+- `Variant` switches rules off, to show each one is needed: `"full"` (all on), `"claimed"`, `"nomove"`, `"noexit"`, `"all"`, `"frozen"`. `atOpen` is only the `"frozen"` variant's: whether a rule floated the window where it opened.
 
 Not modelled: pinned windows (left as they are), several monitors (a move is a move, whatever monitor the workspace is on), the order of windows, and the tick by which the plugin follows Hyprland's events. A window does not open into a full-screen group.
 
@@ -153,9 +153,9 @@ Not modelled: pinned windows (left as they are), several monitors (a move is a m
 
 | Property | Meaning |
 |---|---|
-| `ModeConsistent` | Every window floats exactly when its workspace floats or it floats by its own nature, except a window the user toggled since the mode last reached it, a full-screen one and a minimized one |
+| `ModeConsistent` | Every window floats exactly when its workspace floats or it floats by its own nature there, except a window the user toggled since the mode last reached it, a full-screen one and a minimized one |
 | `GroupCoherent` | The members of a group share their floating, full-screen and toggled state |
-| `OwnStaysFloating` | A window that floats by its own nature is never tiled but by the user |
+| `OwnStaysFloating` | A window that floats by its own nature where it is is never tiled but by the user |
 
 ## Results
 
@@ -163,7 +163,7 @@ Not modelled: pinned windows (left as they are), several monitors (a move is a m
 
 ```
 Model checking completed. No error has been found.
-37324544 states generated, 2245128 distinct states found, 0 states left on queue.
+292698080 states generated, 17480968 distinct states found, 0 states left on queue.
 ```
 
 Each variant without one rule fails the property that rule is for (the traces are the shortest TLC found; `SHOW_TRACE=1 spec/check.sh` prints them):
@@ -174,6 +174,7 @@ Each variant without one rule fails the property that rule is for (the traces ar
 | `nomove` | `ModeConsistent` | A window opens on a floating workspace and floats; it is carried to a tiled one and stays floating |
 | `noexit` | `ModeConsistent` | A window opens on a floating workspace; the plugin unloads. The window floats and nothing floats it |
 | `all` | `OwnStaysFloating` | A window floats by a rule; it is carried to a workspace that does not float and tiles there, though the user never asked |
+| `frozen` | `ModeConsistent` | The own nature read once, as Hyprland reads `static_.floating`. A window opens on a floating workspace whose rule floats it there; it is carried to a tiled workspace the rule does not match and stays floating, as if a rule floated it everywhere |
 
 ## Limits
 

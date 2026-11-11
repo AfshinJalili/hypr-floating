@@ -51,6 +51,7 @@ tlc Floating Floating_claimed    12 "the old rule, tiling again only what the la
 tlc Floating Floating_nomove     12 "without the move rule: a window carried to a floating workspace stays tiled"
 tlc Floating Floating_noexit     12 "without the unload rule: a floated window stays floating once nothing floats it"
 tlc Floating Floating_all        13 "without the own-nature exception: a dialog or a rule-floated window is tiled"
+tlc Floating Floating_frozen     12 "the own nature read once, where the window opens: a window a workspace's rule floated stays floating where nothing floats it"
 [[ ${1:-} == --big ]] && tlc Stacking Stacking_4 0 "both rules, 4 windows"
 
 [[ $FAILED == 0 ]] && echo "all as expected" || echo "unexpected results"
