@@ -14,14 +14,10 @@ hl.window_rule({ match = { class = "^F" }, float = true })
 for path in (os.getenv("PLUGINS") or ""):gmatch("%S+") do
   hl.plugin.load(path)
 end
--- OMARCHY_TAGS=0 turns the Omarchy compatibility tags off.
-if os.getenv("OMARCHY_TAGS") == "0" then
-  hl.config({ plugin = { hypr_floating = { omarchy_tags = 0 } } })
-end
 -- BARS=1: the titlebars plugin (loaded through PLUGINS) draws a bar on the windows of floating workspaces.
 if os.getenv("BARS") == "1" and hl.plugin.hyprbars then
   hl.config({ plugin = { hyprbars = {
-    enabled = true, workspace_tag = "omarchy-floating-workspace", bar_height = 30, bar_color = "rgb(ff8800)",
+    enabled = true, workspace_tag = "hypr-floating-workspace", bar_height = 30, bar_color = "rgb(ff8800)",
     bar_part_of_window = true, bar_precedence_over_border = true,
   } } })
 end

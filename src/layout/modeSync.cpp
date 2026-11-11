@@ -1,8 +1,6 @@
 #include "modeSync.hpp"
 
 #include "../compat.hpp"
-#include "../config.hpp"
-#include "../floating.hpp"
 
 #include <hyprland/src/desktop/rule/windowRule/WindowRuleApplicator.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
@@ -13,8 +11,10 @@
 #include <hyprland/src/layout/supplementary/WorkspaceAlgoMatcher.hpp>
 #include <hyprland/src/layout/target/Target.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 
 #include <algorithm>
+#include <ranges>
 #include <vector>
 
 namespace HyprFloating::ModeSync {
@@ -23,17 +23,14 @@ using namespace Floating;
 
 namespace {
 
-constexpr const char* LAYOUT_NAME   = "floating";
-constexpr const char* CLAIM_TAG     = "hypr-floating-claimed";   // the layout floated the window
-constexpr const char* MARK_TAG      = "hypr-floating-workspace"; // the window is on a floating workspace
-// Omarchy's own tags, for its titlebars and bar: mirrors of the two above.
-constexpr const char* WORKSPACE_TAG = "omarchy-floating-workspace";
-constexpr const char* FLOATED_TAG   = "omarchy-mode-floated";
+constexpr const char* LAYOUT_NAME = "floating";
+constexpr const char* MARK_TAG    = "hypr-floating-workspace"; // the window is on a floating workspace
 
-bool                           g_active  = true;
-uint64_t                       g_pending = 0; // the sequence of the one sync that is waiting, or 0
-int                            g_cascade = 0;
-std::vector<WP<::Layout::ITarget>> g_claimLater;
+bool                       g_active  = true;
+uint64_t                   g_pending = 0; // the sequence of the one sync that is waiting, or 0
+int                        g_cascade = 0;
+std::vector<PHLWORKSPACEREF> g_changedWorkspaces;
+std::vector<PHLWINDOWREF>    g_reachedWindows;
 
 bool tagged(const PHLWINDOW& w, const char* tag) {
     return w->m_ruleApplicator->m_tagKeeper.isTagged(tag, true);
@@ -48,58 +45,68 @@ void setTag(const PHLWINDOW& w, const char* tag, bool on) {
     }
 }
 
-std::vector<PHLWINDOW> windowsOf(const SP<::Layout::ITarget>& target) {
-    const auto W = target->window();
-    return W ? Compat::groupMembers(W) : std::vector<PHLWINDOW>{};
-}
-
 eWorkspace kindOf(const PHLWORKSPACE& ws, bool unloading) {
     if (Compat::special(ws))
         return eWorkspace::SPECIAL;
     return !unloading && floatingWorkspace(ws) ? eWorkspace::FLOATING : eWorkspace::TILED;
 }
 
-// One window against its workspace; the workspace counts as not floating when unloading.
-void syncWindow(const PHLWINDOW& w, bool unloading) {
-    if (!Compat::mapped(w) || !w->m_workspace || !Compat::space(w->m_workspace))
+SWindow describe(const PHLWINDOW& w, eWorkspace workspace) {
+    return {
+        .workspace  = workspace,
+        .floating   = Compat::floating(w),
+        .ownFloat   = std::ranges::any_of(Compat::groupMembers(w), Compat::floatsOnItsOwn), // a group is one target
+        .pinned     = Compat::pinned(w),
+        .fullscreen = Fullscreen::controller()->isFullscreen(w),
+    };
+}
+
+bool usable(const PHLWINDOW& w) {
+    return w && Compat::mapped(w) && w->m_workspace && Compat::space(w->m_workspace);
+}
+
+// The mode reaches one window; its workspace counts as not floating when unloading.
+void apply(const PHLWINDOW& w, bool unloading) {
+    if (!usable(w))
+        return;
+    const auto TARGET = w->layoutTarget();
+    if (!TARGET || !TARGET->space() || !TARGET->space()->algorithm())
         return;
 
-    const bool WASCLAIMED = tagged(w, CLAIM_TAG), WASMARKED = tagged(w, MARK_TAG);
-    const auto R          = Floating::sync({.workspace = kindOf(w->m_workspace, unloading), .floating = Compat::floating(w), .pinned = Compat::pinned(w), .claimed = WASCLAIMED, .marked = WASMARKED});
-
-    setTag(w, CLAIM_TAG, R.claimed);
-    setTag(w, MARK_TAG, R.marked);
-    if (R.retile && w->layoutTarget() && w->layoutTarget()->space())
-        g_layoutManager->changeFloatingMode(w->layoutTarget());
-    // Omarchy's own Lua floating mode sets the same tags: take them back only from a window we set them on.
-    if (Config::omarchyTags()) {
-        if (R.marked || WASMARKED)
-            setTag(w, WORKSPACE_TAG, R.marked);
-        if (R.claimed || WASCLAIMED)
-            setTag(w, FLOATED_TAG, R.claimed);
+    switch (applyMode(describe(w, kindOf(w->m_workspace, unloading)))) {
+        case eAction::KEEP: break;
+        case eAction::FLOAT: floatTarget(TARGET->space()->algorithm(), TARGET); break;
+        case eAction::TILE: g_layoutManager->changeFloatingMode(TARGET); break;
     }
 }
 
-void syncAll(bool unloading) {
-    const auto WINDOWS = Desktop::windowState()->windows(); // a copy: tiling a window reorders the list
-    for (const auto& w : WINDOWS) {
-        if (w)
-            syncWindow(w, unloading);
-    }
+void mark(const PHLWINDOW& w, bool unloading) {
+    if (usable(w))
+        setTag(w, MARK_TAG, marked(kindOf(w->m_workspace, unloading), tagged(w, MARK_TAG)));
+}
+
+template <typename T>
+bool contains(const std::vector<T>& refs, const auto& p) {
+    return std::ranges::any_of(refs, [&](const T& ref) { return ref.lock() == p; });
 }
 
 void flush() {
     g_pending = 0;
 
-    auto later = std::move(g_claimLater);
-    g_claimLater.clear();
-    for (const auto& ref : later) {
-        const auto T = ref.lock();
-        if (T && !T->floating() && T->space() && T->space()->algorithm() && floatingWorkspace(T->workspace()))
-            claim(T->space()->algorithm(), T);
-    }
+    const auto WORKSPACES = std::move(g_changedWorkspaces);
+    const auto REACHED    = std::move(g_reachedWindows);
+    g_changedWorkspaces.clear();
+    g_reachedWindows.clear();
 
-    syncAll(false);
+    const auto WINDOWS = Desktop::windowState()->windows(); // a copy: floating or tiling a window reorders the list
+    for (const auto& w : WINDOWS) {
+        if (w && (contains(REACHED, w) || contains(WORKSPACES, w->m_workspace)))
+            apply(w, false);
+    }
+    for (const auto& w : WINDOWS) {
+        if (w)
+            mark(w, false);
+    }
 }
 
 } // namespace
@@ -111,42 +118,31 @@ bool floatingWorkspace(const PHLWORKSPACE& ws) {
     return ::Layout::Supplementary::algoMatcher()->getNameForTiledAlgo(SPACE->algorithm()->tiledAlgo().get()) == LAYOUT_NAME;
 }
 
-void claim(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target) {
-    const auto MEMBERS = windowsOf(target);
-    for (const auto& w : MEMBERS)
-        setTag(w, CLAIM_TAG, true);
-
-    algo->setFloating(target, true, true);
-
-    g_cascade        = nextCascade(g_cascade);
-    const auto& WA   = algo->space()->workArea(true);
-    const auto  BOX  = openBox({WA.x, WA.y, WA.w, WA.h}, g_cascade);
-    algo->setTargetGeom(CBox{BOX.x, BOX.y, BOX.w, BOX.h}, target);
-
-    for (const auto& w : MEMBERS)
-        syncWindow(w, false);
+eAction onArrival(const PHLWINDOW& w, const PHLWORKSPACE& ws, eArrival how) {
+    return Floating::onArrival(how, describe(w, kindOf(ws, !g_active))); // unloading: stop() is tiling it
 }
 
-void claimLater(const SP<::Layout::ITarget>& target) {
-    if (!g_active)
+void floatTarget(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target) {
+    algo->setFloating(target, true, true);
+
+    g_cascade       = nextCascade(g_cascade);
+    const auto& WA  = algo->space()->workArea(true);
+    const auto  BOX = openBox({WA.x, WA.y, WA.w, WA.h}, g_cascade);
+    algo->setTargetGeom(CBox{BOX.x, BOX.y, BOX.w, BOX.h}, target);
+}
+
+void layoutChanged(const PHLWORKSPACE& ws) {
+    if (!g_active || !ws)
         return;
-    g_claimLater.emplace_back(target);
+    g_changedWorkspaces.emplace_back(ws);
     syncLater();
 }
 
-void opened(const PHLWINDOW& w) {
-    const auto MEMBERS = Compat::groupMembers(w);
-    if (std::ranges::any_of(MEMBERS, [](const PHLWINDOW& m) { return tagged(m, CLAIM_TAG); })) {
-        for (const auto& m : MEMBERS)
-            setTag(m, CLAIM_TAG, true);
-    }
-    for (const auto& m : MEMBERS)
-        syncWindow(m, false);
-}
-
-void sync(const SP<::Layout::ITarget>& target) {
-    for (const auto& w : windowsOf(target))
-        syncWindow(w, false);
+void reached(const PHLWINDOW& w) {
+    if (!g_active || !w)
+        return;
+    g_reachedWindows.emplace_back(w);
+    syncLater();
 }
 
 void syncLater() {
@@ -159,8 +155,18 @@ void stop() {
     if (g_pending)
         g_pEventLoopManager->removeDoLater(g_pending);
     g_pending = 0;
-    g_claimLater.clear();
-    syncAll(true);
+    g_changedWorkspaces.clear();
+    g_reachedWindows.clear();
+
+    const auto WINDOWS = Desktop::windowState()->windows();
+    for (const auto& w : WINDOWS) {
+        if (w && floatingWorkspace(w->m_workspace))
+            apply(w, true);
+    }
+    for (const auto& w : WINDOWS) {
+        if (w)
+            mark(w, true);
+    }
 }
 
 } // namespace HyprFloating::ModeSync

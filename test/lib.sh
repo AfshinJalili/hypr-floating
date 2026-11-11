@@ -21,7 +21,7 @@ host_guard_end() {
 # LUA picks the config (test.lua: every window floats by rule; floating.lua: workspace 1 has the floating layout;
 # omarchy.lua: Omarchy's own Lua). SESSION_ENV: more VAR=value words for the nested Hyprland.
 session_start() { # [plugin.so ...]
-  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" BARS="${BARS:-0}" OMARCHY_TAGS="${OMARCHY_TAGS:-1}" ${SESSION_ENV:-} || exit 1
+  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" BARS="${BARS:-0}" ${SESSION_ENV:-} || exit 1
   read -r W H < <(hyprctl monitors -j | jq -r '.[0] | "\(.width) \(.height)"')
 }
 # The nested Hyprland must not have crashed, in the middle of the run (alive) or while it shut down.
@@ -84,17 +84,14 @@ win() { hyprctl clients -j | jq -c --arg c "$1" '.[] | select(.class == $c)'; }
 geom() { win "$1" | jq -r '"\(.at[0]) \(.at[1]) \(.size[0]) \(.size[1])"'; }
 workspace_of() { win "$1" | jq -r '.workspace.id'; }
 layout_of() { hyprctl workspaces -j | jq -r --arg id "$1" '.[] | select((.id | tostring) == $id) | .tiledLayout'; }
-# desc <class>: floating or tiled, then what marks it: claimed (the layout floated it, the plugin's own
-# tag), wstag (omarchy-floating-workspace), ftag (omarchy-mode-floated)
+# desc <class>: floating or tiled, and "marked" when it carries the layout's mark (hypr-floating-workspace:
+# it is on a floating workspace; titlebars and opacity follow it)
 desc() {
   win "$1" | jq -r '[(if .floating then "floating" else "tiled" end),
-    (.tags | map(select(. == "hypr-floating-claimed") | "claimed")[]),
-    (.tags | map(select(. == "omarchy-floating-workspace") | "wstag")[]),
-    (.tags | map(select(. == "omarchy-mode-floated") | "ftag")[])] | join(" ")'
+    (.tags | map(select(. == "hypr-floating-workspace") | "marked")[])] | join(" ")'
 }
-CLAIMED="floating claimed wstag ftag"   # floated by the layout
-ALONE="floating wstag"                  # floating on its own on a floating workspace
-TILED_HERE="tiled wstag"                # kept tiled by the user on a floating workspace
+FLOATS="floating marked"     # floating on a floating workspace
+TILED_HERE="tiled marked"    # tiled on a floating workspace (the user un-floated it, or it is full screen)
 
 # expect <what> <actual> <expected>: PASS/FAIL
 expect() {

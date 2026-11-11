@@ -1,4 +1,4 @@
-// Unit tests of the floating layout's bookkeeping. Plain C++, no Hyprland.
+// Unit tests of the floating layout's rule. Plain C++, no Hyprland.
 #include "../../src/floating.hpp"
 
 #include <cstdio>
@@ -18,8 +18,8 @@ static bool same(const SBox& a, const SBox& b) {
     return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
 }
 
-static SWindow window(eWorkspace ws, bool floating, bool claimed, bool pinned = false, bool marked = false) {
-    return {.workspace = ws, .floating = floating, .pinned = pinned, .claimed = claimed, .marked = marked};
+static SWindow window(eWorkspace ws, bool floating, bool own = false) {
+    return {.workspace = ws, .floating = floating, .ownFloat = own};
 }
 
 int main() {
@@ -36,61 +36,60 @@ int main() {
         seen |= 1 << c;
     check(seen == (1 << CASCADE_STEPS) - 1 && nextCascade(CASCADE_STEPS - 1) == 0, "the cascade visits every step and wraps");
 
-    // --- a tiled window reaching a floating workspace
-    check(onArrival(eArrival::ARRIVED, false) == eArrivalVerdict::CLAIM, "a new window, or one carried in, is floated");
-    check(onArrival(eArrival::TOGGLED, false) == eArrivalVerdict::TILE, "a window the user un-floated stays tiled");
-    check(onArrival(eArrival::ARRIVED, true) == eArrivalVerdict::TILE, "a full-screen window is left as it is");
-
-    // --- a window against its workspace
+    // --- the mode reaches a window
     using enum eWorkspace;
-    auto s = sync(window(FLOATING, true, true));
-    check(!s.retile && s.claimed && s.marked, "claimed on a floating workspace: stays, claimed and marked");
-    s = sync(window(FLOATING, true, false));
-    check(!s.retile && !s.claimed && s.marked, "floating on its own on a floating workspace: marked, not claimed");
-    s = sync(window(FLOATING, false, false));
-    check(!s.retile && !s.claimed && s.marked, "user-tiled on a floating workspace: marked, not claimed");
-    s = sync(window(FLOATING, false, true));
-    check(!s.claimed && s.marked, "no claim survives a window being tiled");
+    using enum eAction;
+    check(applyMode(window(FLOATING, false)) == FLOAT, "tiled on a floating workspace: floats");
+    check(applyMode(window(FLOATING, true)) == KEEP, "floating on a floating workspace: stays");
+    check(applyMode(window(TILED, true)) == TILE, "floating on a tiled workspace: tiles, whoever floated it (the layout, the user, Omarchy's Lua)");
+    check(applyMode(window(TILED, false)) == KEEP, "tiled on a tiled workspace: stays");
+    check(applyMode(window(TILED, true, true)) == KEEP, "a dialog or rule-floated window on a tiled workspace: stays floating");
+    check(applyMode(window(TILED, false, true)) == FLOAT, "a dialog the user tiled: floats again when the mode reaches it");
+    check(applyMode(window(FLOATING, true, true)) == KEEP, "a dialog on a floating workspace: stays floating");
+    check(applyMode(window(SPECIAL, true)) == KEEP && applyMode(window(SPECIAL, false)) == KEEP, "a special workspace (minimized): keeps the state the window arrived with");
+    auto pinned = window(TILED, true);
+    pinned.pinned = true;
+    check(applyMode(pinned) == KEEP, "a pinned window is left as it is (tiling would unpin it)");
+    auto full = window(TILED, true);
+    full.fullscreen = true;
+    check(applyMode(full) == KEEP, "a full-screen floating window on a tiled workspace: left as it is");
+    full = window(FLOATING, false);
+    full.fullscreen = true;
+    check(applyMode(full) == KEEP, "a full-screen tiled window on a floating workspace: left as it is");
 
-    s = sync(window(TILED, true, true));
-    check(s.retile && !s.claimed && !s.marked, "claimed and floating where the workspace tiles: tile again, unmarked");
-    s = sync(window(TILED, true, false, false, true));
-    check(!s.retile && !s.claimed && !s.marked, "floating on its own where the workspace tiles: stays floating, unmarked");
-    s = sync(window(TILED, false, false));
-    check(!s.retile && !s.claimed, "tiled where the workspace tiles: nothing");
-    s = sync(window(TILED, true, true, true));
-    check(!s.retile && !s.claimed, "a pinned claimed window stays floating (tiling would unpin it) and loses its claim");
-    s = sync(window(TILED, false, true));
-    check(!s.retile && !s.claimed, "a claimed window that is already tiled only loses its claim");
+    // --- a tiled window reaching the floating layout
+    check(onArrival(eArrival::ARRIVED, window(FLOATING, false)) == FLOAT, "a new window, one carried in, one there as the workspace starts floating: floats");
+    check(onArrival(eArrival::TOGGLED, window(FLOATING, false)) == KEEP, "the user un-floated it here: stays tiled until the mode next reaches it");
+    check(onArrival(eArrival::ARRIVED, full) == KEEP, "a full-screen window arriving: left as it is");
+    check(onArrival(eArrival::ARRIVED, window(SPECIAL, false)) == KEEP, "a window minimized to a special workspace whose layout floats: stays tiled");
 
-    s = sync(window(SPECIAL, true, true, false, true));
-    check(!s.retile && s.claimed && s.marked, "special workspace: claim and mark are kept");
-    s = sync(window(SPECIAL, false, false));
-    check(!s.retile && !s.claimed && !s.marked, "special workspace, unclaimed: nothing");
+    // --- the mark
+    check(marked(FLOATING, false) && !marked(TILED, true) && marked(SPECIAL, true) && !marked(SPECIAL, false), "the mark: on a floating workspace, off elsewhere, kept on a special one");
 
-    // --- round trips: floating -> tiled -> floating, and what is left floating
+    // --- a workspace's windows through the mode cycle dwindle -> scrolling -> floating -> dwindle
     struct SW {
         SWindow w;
-        bool    userFloated;
+        bool    wantsFloating; // after floating -> dwindle
     };
-    std::vector<SW> ws = {{window(FLOATING, true, true), false}, {window(FLOATING, true, false), true}};
-    for (auto& e : ws) { // the workspace stops floating
-        e.w.workspace = TILED;
-        const auto R  = sync(e.w);
-        e.w.floating  = e.w.floating && !R.retile;
-        e.w.claimed   = R.claimed;
-        e.w.marked    = R.marked;
-    }
-    check(!ws[0].w.floating && ws[1].w.floating && !ws[0].w.marked && !ws[1].w.marked, "the workspace stops floating: ours tile, the user's stay floating, nothing stays marked");
-    for (auto& e : ws) { // it floats again: tiled windows are claimed
-        e.w.workspace = FLOATING;
-        if (!e.w.floating && onArrival(eArrival::ARRIVED, false) == eArrivalVerdict::CLAIM)
-            e.w.floating = e.w.claimed = true;
-        const auto R = sync(e.w);
-        e.w.claimed  = R.claimed;
-        e.w.marked   = R.marked;
-    }
-    check(ws[0].w.floating && ws[0].w.claimed && ws[1].w.floating && !ws[1].w.claimed && ws[0].w.marked && ws[1].w.marked, "floats again: the same windows are claimed, the user's still is not, both marked");
+    std::vector<SW> ws = {
+        {window(TILED, false), false},      // tiled
+        {window(TILED, true), false},       // floated by hand
+        {window(TILED, true, true), true},  // a dialog
+    };
+    auto reach = [&](eWorkspace to) {
+        for (auto& e : ws) {
+            e.w.workspace = to;
+            const auto A  = applyMode(e.w);
+            e.w.floating  = A == FLOAT || (A == KEEP && e.w.floating);
+        }
+    };
+    reach(TILED); // dwindle -> scrolling
+    check(!ws[0].w.floating && !ws[1].w.floating && ws[2].w.floating, "dwindle -> scrolling: the hand-floated window tiles, the dialog floats");
+    reach(FLOATING);
+    check(ws[0].w.floating && ws[1].w.floating && ws[2].w.floating, "scrolling -> floating: every window floats");
+    ws[0].w.floating = false; // the user tiles one by hand
+    reach(TILED);
+    check(!ws[0].w.floating && !ws[1].w.floating && ws[2].w.floating, "floating -> dwindle: every window tiles but the dialog");
 
     std::puts(g_failed ? "FAILED" : "all PASS");
     return g_failed != 0;

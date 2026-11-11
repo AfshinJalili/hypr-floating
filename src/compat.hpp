@@ -2,6 +2,7 @@
 // Only this header changes between the main (0.57) and hyprland-0.56 branches.
 #pragma once
 
+#include <hyprland/src/desktop/rule/windowRule/WindowRuleApplicator.hpp>
 #include <hyprland/src/desktop/view/Group.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/desktop/Workspace.hpp>
@@ -28,6 +29,12 @@ inline bool allowedOverFullscreen(const PHLWINDOW& w) {
 
 inline void setAllowedOverFullscreen(const PHLWINDOW& w, bool allowed) {
     w->m_allowedOverFullscreen = allowed;
+}
+
+// Floats by its own nature: Hyprland floated it as it mapped (a dialog, a transient, a fixed
+// size), or a window rule floats it.
+inline bool floatsOnItsOwn(const PHLWINDOW& w) {
+    return w->m_requestsFloat || w->m_ruleApplicator->static_.floating.value_or(false);
 }
 
 inline bool special(const PHLWORKSPACE& ws) {
