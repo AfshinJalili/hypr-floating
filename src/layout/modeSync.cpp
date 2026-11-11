@@ -1,5 +1,6 @@
 #include "modeSync.hpp"
 
+#include "ownFloat.hpp"
 #include "../compat.hpp"
 
 #include <hyprland/src/desktop/rule/windowRule/WindowRuleApplicator.hpp>
@@ -55,7 +56,7 @@ SWindow describe(const PHLWINDOW& w, eWorkspace workspace) {
     return {
         .workspace  = workspace,
         .floating   = Compat::floating(w),
-        .ownFloat   = std::ranges::any_of(Compat::groupMembers(w), Compat::floatsOnItsOwn), // a group is one target
+        .ownFloat   = std::ranges::any_of(Compat::groupMembers(w), OwnFloat::floats), // a group is one target
         .pinned     = Compat::pinned(w),
         .fullscreen = Fullscreen::controller()->isFullscreen(w),
     };

@@ -194,7 +194,7 @@ The plugin loads next to the omarchy-macos titlebars and Mission Control plugins
 | `src/stacking.{hpp,cpp}` | The stacking rule, as plain values in and out; no Hyprland |
 | `src/stackingFix.{hpp,cpp}` | Applies it: hooks `CWindowState::moveToZ`, listens to window events |
 | `src/floating.{hpp,cpp}` | The floating layout's rule (placement, what the mode asks of a window, the mark), plain values; no Hyprland |
-| `src/layout/` | The layout on Hyprland: `floatingAlgo` (the tiled algorithm), `modeSync` (applies the mode and the mark to windows), `floatingLayout` (install, the events and the layout-change hook that tell `modeSync`) |
+| `src/layout/` | The layout on Hyprland: `floatingAlgo` (the tiled algorithm), `modeSync` (applies the mode and the mark to windows), `ownFloat` (whether a window floats by its own nature), `floatingLayout` (install, the events and the layout-change hook that tell `modeSync`) |
 | `src/compat.hpp` | The calls that differ between Hyprland versions |
 | `src/config.{hpp,cpp}`, `src/main.cpp` | Options and the plugin entry points |
 | `test/unit/` | Unit tests (CTest) |
