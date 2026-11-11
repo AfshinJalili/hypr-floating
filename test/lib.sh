@@ -20,7 +20,7 @@ host_guard_end() {
 
 # LUA picks the config (test.lua: every window floats by rule; floating.lua: workspace 1 has the floating layout).
 session_start() { # [plugin.so ...]
-  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" || exit 1
+  NESTED_LOG="$LOGDIR/${LOG_NAME:-nested}.log" nested_start "${LUA:-$HERE/test.lua}" PLUGINS="'$*'" MODE="${MODE_RES:-preferred}" WS1_LAYOUT="${WS1_LAYOUT:-floating}" BARS="${BARS:-0}" OMARCHY_TAGS="${OMARCHY_TAGS:-1}" || exit 1
   read -r W H < <(hyprctl monitors -j | jq -r '.[0] | "\(.width) \(.height)"')
 }
 # The nested Hyprland must not have crashed, in the middle of the run (alive) or while it shut down.
@@ -100,6 +100,8 @@ expect() {
   if [[ $2 == "$3" ]]; then echo "PASS: $1 ($2)"
   else echo "FAIL: $1: expected \"$3\", got \"$2\""; FAILED=$((FAILED + 1)); fi
 }
+expect_ok() { if "${@:2}"; then echo "PASS: $1"; else echo "FAIL: $1"; FAILED=$((FAILED + 1)); fi; }   # expect_ok <what> <cmd...>
+expect_not() { if ! "${@:2}"; then echo "PASS: $1"; else echo "FAIL: $1"; FAILED=$((FAILED + 1)); fi; } # expect_not <what> <cmd...>
 # expect_desc <class> <expected desc> [what]
 expect_desc() { expect "${3:-$1}" "$(desc "$1")" "$2"; }
 

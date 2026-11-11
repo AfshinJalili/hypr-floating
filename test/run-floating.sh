@@ -3,7 +3,7 @@
 # floats every window. Each scenario starts its own nested Hyprland and prints PASS
 # or FAIL; the script exits non-zero on any FAIL.
 # Usage: test/run-floating.sh <hypr-floating.so> [scenario ...]
-#   scenarios: open switch toggle fullscreen groups move unload monitors (default: all)
+#   scenarios: open switch toggle fullscreen groups move unload monitors tags (default: all)
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 SO="$(realpath "${1:?usage: run-floating.sh <hypr-floating.so> [scenario ...]}")"; shift
@@ -17,8 +17,6 @@ overlaps() {
 }
 # inside <class>: the window lies inside the monitor
 inside() { read -r x y w h < <(geom "$1"); ((x >= 0 && y >= 0 && x + w <= W && y + h <= H)); }
-expect_ok() { if "${@:2}"; then echo "PASS: $1"; else echo "FAIL: $1"; FAILED=$((FAILED + 1)); fi; }  # expect_ok <what> <cmd...>
-expect_not() { if ! "${@:2}"; then echo "PASS: $1"; else echo "FAIL: $1"; FAILED=$((FAILED + 1)); fi; }
 # box <step> [monitor width height]: where the layout puts a window at a cascade step: 64% x 68% of the
 # monitor (at most 1100 x 760), centred, stepped 24px per step from the middle one (step 2)
 box() { awk -v W="${2:-$W}" -v H="${3:-$H}" -v s="$1" 'function r(v) { return int(v + 0.5) }
@@ -247,7 +245,24 @@ scenario_monitors() {
   alive; session_stop
 }
 
-SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(open switch toggle fullscreen groups move unload monitors)
+scenario_tags() {
+  echo "== tags: plugin:hypr_floating:omarchy_tags = 0 leaves the Omarchy tags out"
+  LOG_NAME=tags OMARCHY_TAGS=0 session_start "$SO"
+  expect "the option reads 0" "$(hyprctl getoption plugin:hypr_floating:omarchy_tags -j | jq -r '.int')" 0
+  open_class A; open_class B
+  expect_desc A "floating claimed" "no Omarchy tags: A floats, only the plugin's own claim tag"
+  expect "A and B still float at the layout's size" "$(geom A | cut -d' ' -f3-)" "$(box 1 | cut -d' ' -f3-)"
+  float_off A
+  expect_desc A tiled "togglefloating still sticks"
+  layout 1 dwindle
+  expect_desc B tiled "to dwindle: B tiles"
+  layout 1 floating
+  expect_desc B "floating claimed" "back to floating: B floats, still no Omarchy tags"
+  expect "no window carries an omarchy- tag" "$(hyprctl clients -j | jq '[.[].tags[] | select(startswith("omarchy-"))] | length')" 0
+  alive; session_stop
+}
+
+SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(open switch toggle fullscreen groups move unload monitors tags)
 for s in "${SCENARIOS[@]}"; do "scenario_$s"; done
 
 host_guard_end
