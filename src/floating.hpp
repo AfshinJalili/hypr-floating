@@ -9,8 +9,6 @@
 // are unit-tested without a compositor (test/unit/) and modelled in spec/Floating.tla.
 #pragma once
 
-#include <optional>
-
 namespace HyprFloating::Floating {
 
 struct SBox {
@@ -51,24 +49,20 @@ struct SWindow {
     bool       floating  = false;
     bool       pinned    = false;
     bool       claimed   = false;
-};
-
-// What the Omarchy compatibility tags say about a window.
-struct STags {
-    bool onFloatingWorkspace = false; // omarchy-floating-workspace: titlebars and shadows follow it
-    bool floatedByLayout     = false; // omarchy-mode-floated: the layout floated it
-    bool operator==(const STags&) const = default;
+    bool       marked    = false; // carries the layout's own "on a floating workspace" mark
 };
 
 struct SSync {
-    bool                retile  = false; // tile the window again (it was claimed, and its workspace does not float)
-    bool                claimed = false; // the window's claim afterwards
-    std::optional<STags> tags;           // none: leave the tags as they are
+    bool retile  = false; // tile the window again (it was claimed, and its workspace does not float)
+    bool claimed = false; // the window's claim afterwards
+    bool marked  = false; // the window's mark afterwards: every window of a floating workspace has it
 };
 
 // Brings one window in line with its workspace: a claimed window whose workspace does
 // not float is tiled again, except a pinned one (tiling would unpin it), which only
-// loses its claim. No window keeps a claim while it is tiled.
+// loses its claim. No window keeps a claim while it is tiled. The mark is the layout's
+// own record of a window it has seen on a floating workspace, so that what it sets for
+// Omarchy (the tags) is only ever taken back from windows it set it on.
 SSync sync(const SWindow& w);
 
 } // namespace HyprFloating::Floating

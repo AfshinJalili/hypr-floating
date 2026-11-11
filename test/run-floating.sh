@@ -258,6 +258,7 @@ scenario_tags() {
   expect_desc B tiled "to dwindle: B tiles"
   layout 1 floating
   expect_desc B "floating claimed" "back to floating: B floats, still no Omarchy tags"
+  expect "A carries the layout's own tags (the workspace's mark and the claim)" "$(win A | jq -r '[.tags[] | select(startswith("hypr-floating-"))] | sort | join(" ")')" "hypr-floating-claimed hypr-floating-workspace"
   expect "no window carries an omarchy- tag" "$(hyprctl clients -j | jq '[.[].tags[] | select(startswith("omarchy-"))] | length')" 0
   alive; session_stop
 }

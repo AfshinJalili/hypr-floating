@@ -27,14 +27,11 @@ eArrivalVerdict onArrival(eArrival how, bool fullscreen) {
 
 SSync sync(const SWindow& w) {
     switch (w.workspace) {
-        case eWorkspace::SPECIAL: return {.retile = false, .claimed = w.claimed, .tags = std::nullopt};
-        case eWorkspace::FLOATING: {
-            const bool CLAIMED = w.claimed && w.floating;
-            return {.claimed = CLAIMED, .tags = STags{.onFloatingWorkspace = true, .floatedByLayout = CLAIMED}};
-        }
+        case eWorkspace::SPECIAL: return {.retile = false, .claimed = w.claimed, .marked = w.marked};
+        case eWorkspace::FLOATING: return {.claimed = w.claimed && w.floating, .marked = true};
         case eWorkspace::TILED: break;
     }
-    return {.retile = w.claimed && w.floating && !w.pinned, .claimed = false, .tags = STags{}};
+    return {.retile = w.claimed && w.floating && !w.pinned};
 }
 
 } // namespace HyprFloating::Floating
