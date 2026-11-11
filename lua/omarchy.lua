@@ -6,6 +6,10 @@
 -- Load it from ~/.config/hypr/hyprland.lua after the plugin and BEFORE
 -- require("default.hypr.toggles"), which loads the saved layouts through o.workspace_mode.
 -- Omarchy's own floating mode then never acts on a workspace.
+--
+--   dofile(".../omarchy.lua")                              -- as Omarchy's floating mode
+--   loadfile(".../omarchy.lua")({ follow_mouse = false })  -- but leave input:follow_mouse alone
+local options = ... or {}
 
 -- The tag the plugin puts on every window of a floating workspace.
 local FLOATING_TAG = "hypr-floating-workspace"
@@ -55,7 +59,9 @@ local function set_up_floating()
 end
 
 -- On a floating workspace windows overlap, so focus follows clicks, not the pointer, as in
--- Omarchy's floating mode. Every other workspace keeps the user's own setting.
+-- Omarchy's floating mode. Every other workspace keeps the user's own setting. Off with
+-- { follow_mouse = false }.
+local manage_follow_mouse = options.follow_mouse ~= false
 local follow_mouse = hl.get_config("input.follow_mouse")
 local follows = nil
 
@@ -70,12 +76,16 @@ end
 
 -- A layout set here applies once the call returns.
 local function update_follow_mouse_later()
-  hl.timer(update_follow_mouse, { type = "oneshot", timeout = 1 })
+  if manage_follow_mouse then
+    hl.timer(update_follow_mouse, { type = "oneshot", timeout = 1 })
+  end
 end
 
-hl.on("workspace.active", update_follow_mouse)
-hl.on("monitor.focused", update_follow_mouse)
-update_follow_mouse_later()
+if manage_follow_mouse then
+  hl.on("workspace.active", update_follow_mouse)
+  hl.on("monitor.focused", update_follow_mouse)
+  update_follow_mouse_later()
+end
 
 -- A maximized window has a floating workspace to itself until another window opens there,
 -- which brings it back to its own size so the two can share it, as in Omarchy's floating mode.
