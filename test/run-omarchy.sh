@@ -72,6 +72,9 @@ scenario_switched() {
   expect "workspace 1 keeps the layout Omarchy saved" "$(layout_of 1)" dwindle
   workspace 2; open_class A; open_class B
   expect "workspace 2 has the layout" "$(layout_of 2)" floating
+  expect "Omarchy's bar reads workspace 2 as floating" "$(XDG_STATE_HOME="$TMP/switched" omarchy-hyprland-workspace-layout-current 2)" floating
+  expect "Omarchy's bar reads workspace 1 as dwindle" "$(XDG_STATE_HOME="$TMP/switched" omarchy-hyprland-workspace-layout-current 1)" dwindle
+  expect "Omarchy's default layout is floating" "$(XDG_STATE_HOME="$TMP/switched" omarchy-hyprland-workspace-layout-default)" floating
   expect_desc A "floating claimed" "A floated by the layout"; expect_desc B "floating claimed" "B floated by the layout"
   expect "A carries the layout's own workspace tag, which the titlebars and opacity follow" "$(win A | jq -r '.tags | index("hypr-floating-workspace") != null')" true
   expect "no window carries an omarchy- tag from the plugin" "$(hyprctl clients -j | jq '[.[].tags[] | select(startswith("omarchy-"))] | length')" 0

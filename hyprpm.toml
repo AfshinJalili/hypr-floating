@@ -10,7 +10,7 @@ commit_pins = [
 ]
 
 [hypr-floating]
-description = "Floating windows: a window drawn over a full-screen one takes the clicks"
+description = "Floating windows: a floating workspace layout, and a window drawn over a full-screen one takes the clicks"
 authors = ["Afshin Jalili"]
 output = "build/hypr-floating.so"
 build = [
