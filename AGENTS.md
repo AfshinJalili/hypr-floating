@@ -51,5 +51,5 @@ The nested tests print PASS or FAIL per check and exit non-zero on any FAIL. Eac
 - A click raises the window the pointer was last over until the pointer moves; the tests move the pointer first.
 - Hyprland removes a plugin's function hooks when it unloads it.
 - Omarchy's Lua (`workspace-modes.lua`) tiles any window with `omarchy-mode-floated` on a workspace it does not float and strips `omarchy-floating-workspace` from it: the layout's tags must only be taken back from windows it set them on, and `omarchy_tags = 0` is the way out when Omarchy's Lua is in the way.
-- Callbacks that change windows run in `doLater` (`Claims::syncLater`), never inside the event that announced the change: a move is still being committed then. `Claims::stop` cancels the pending one before unload.
+- Callbacks that change windows run in `doLater` (`ModeSync::syncLater`), never inside the event that announced the change: a move is still being committed then. `ModeSync::stop` cancels the pending one before unload.
 - `-fno-gnu-unique` is load-bearing: without it a same-path unload and load keeps the old image.

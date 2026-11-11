@@ -1,6 +1,6 @@
 #include "floatingAlgo.hpp"
 
-#include "claims.hpp"
+#include "modeSync.hpp"
 #include "../floating.hpp"
 
 #include <hyprland/src/layout/algorithm/Algorithm.hpp>
@@ -23,7 +23,7 @@ class CFloatingAlgorithm : public ::Layout::Tiled::CDwindleAlgorithm {
   public:
     ~CFloatingAlgorithm() override {
         // The workspace has another layout now (or is going away): give back what we floated.
-        Claims::syncLater();
+        ModeSync::syncLater();
     }
 
     void newTarget(SP<::Layout::ITarget> target) override {
@@ -71,7 +71,7 @@ class CFloatingAlgorithm : public ::Layout::Tiled::CDwindleAlgorithm {
         const auto P = m_parent.lock();
         if (onArrival(how, FS) == eArrivalVerdict::TILE || !P) {
             tile(target, how, focalPoint);
-            Claims::sync(target);
+            ModeSync::sync(target);
             return;
         }
 
@@ -79,11 +79,11 @@ class CFloatingAlgorithm : public ::Layout::Tiled::CDwindleAlgorithm {
         // layout's tiled targets, and floating one now would erase it from that list.
         if (P->tiledAlgo().get() != this) {
             tile(target, how, focalPoint);
-            Claims::claimLater(target);
+            ModeSync::claimLater(target);
             return;
         }
 
-        Claims::claim(P, target);
+        ModeSync::claim(P, target);
     }
 };
 

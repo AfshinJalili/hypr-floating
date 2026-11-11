@@ -15,7 +15,7 @@ namespace Layout {
     class ITarget;
 }
 
-namespace HyprFloating::Claims {
+namespace HyprFloating::ModeSync {
 
 // Float a tiled target and claim every window of it (a group floats as one).
 void claim(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target);
@@ -41,4 +41,4 @@ void stop();
 // Whether the workspace's layout is the floating layout.
 bool floatingWorkspace(const PHLWORKSPACE& ws);
 
-} // namespace HyprFloating::Claims
+} // namespace HyprFloating::ModeSync

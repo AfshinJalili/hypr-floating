@@ -1,4 +1,4 @@
-#include "claims.hpp"
+#include "modeSync.hpp"
 
 #include "../compat.hpp"
 #include "../config.hpp"
@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace HyprFloating::Claims {
+namespace HyprFloating::ModeSync {
 
 using namespace Floating;
 
@@ -163,4 +163,4 @@ void stop() {
     syncAll(true);
 }
 
-} // namespace HyprFloating::Claims
+} // namespace HyprFloating::ModeSync
