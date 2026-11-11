@@ -31,17 +31,18 @@ int main(int argc, char **argv) {
   char line[128], command[32];
   int x, y;
   while (fgets(line, sizeof(line), stdin)) {
-    if (sscanf(line, "%31s %d %d", command, &x, &y) < 1)
+    int n = sscanf(line, "%31s %d %d", command, &x, &y);
+    if (n < 1)
       continue;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     uint32_t now = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
     if (!strcmp(command, "move"))
       zwlr_virtual_pointer_v1_motion_absolute(pointer, now, x, y, atoi(argv[1]), atoi(argv[2]));
-    else if (!strcmp(command, "down"))
-      zwlr_virtual_pointer_v1_button(pointer, now, 272, WL_POINTER_BUTTON_STATE_PRESSED);
+    else if (!strcmp(command, "down")) // down [button code, 272 (left) by default]
+      zwlr_virtual_pointer_v1_button(pointer, now, n >= 2 ? x : 272, WL_POINTER_BUTTON_STATE_PRESSED);
     else if (!strcmp(command, "up"))
-      zwlr_virtual_pointer_v1_button(pointer, now, 272, WL_POINTER_BUTTON_STATE_RELEASED);
+      zwlr_virtual_pointer_v1_button(pointer, now, n >= 2 ? x : 272, WL_POINTER_BUTTON_STATE_RELEASED);
     // Hyprland resets the source on each axis value, so the source follows the value.
     else if (!strcmp(command, "scroll")) { // scroll <axis 0=vertical 1=horizontal> <delta>: one trackpad scroll event
       zwlr_virtual_pointer_v1_axis(pointer, now, x, wl_fixed_from_int(y));
