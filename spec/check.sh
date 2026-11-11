@@ -46,6 +46,12 @@ tlc Stacking Stacking_stock      12 "stock Hyprland: the bug, a window drawn ove
 tlc Stacking Stacking_stock_top  12 "stock Hyprland: what is on top is not what the click reaches"
 tlc Stacking Stacking_stock_above 12 "stock Hyprland: a window stacked above the full-screen window is hidden"
 tlc Stacking Stacking_rule1      12 "rule 1 without rule 2: a window focused below the full-screen window is hidden and loses focus"
+tlc Floating Floating            0  "the floating layout's bookkeeping: every property holds (3 windows, 2 workspaces, a group)"
+tlc Floating Floating_refloat    12 "without the sticking togglefloating: the layout floats the window the user tiled again"
+tlc Floating Floating_noexit     12 "without the unload rule: a floated window stays floating once nothing floats it"
+tlc Floating Floating_headtag    12 "without claiming every member: a floated group has one claimed window"
+tlc Floating Floating_nogroup    12 "without the group join rule: a window opening into a claimed group is not claimed"
+tlc Floating Floating_all        13 "tiling every floating window instead of the claimed ones: the user's floating windows tile"
 [[ ${1:-} == --big ]] && tlc Stacking Stacking_4 0 "both rules, 4 windows"
 
 [[ $FAILED == 0 ]] && echo "all as expected" || echo "unexpected results"
