@@ -1,0 +1,15 @@
+# Arch packages for ci/hyprland-headers.sh and the plugin build. The hyprland
+# package brings Hyprland's runtime libraries; the hyprwm libraries themselves
+# are rebuilt at the versions the target Hyprland pins.
+base-devel
+git
+jq
+cmake
+meson
+ninja
+pkgconf
+hyprland
+wayland-protocols
+glslang
+xcb-util-errors
+cpio

@@ -1,0 +1,16 @@
+[repository]
+name = "hypr-floating"
+authors = ["Afshin Jalili"]
+# Hyprland commit -> commit whose sources build against it. Hyprland versions
+# not listed build main (0.57). The hyprland-0.56 branch carries the 0.56 sources.
+commit_pins = [
+]
+
+[hypr-floating]
+description = "Floating windows: a window drawn over a full-screen one takes the clicks"
+authors = ["Afshin Jalili"]
+output = "build/hypr-floating.so"
+build = [
+    "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
+    "cmake --build build -j",
+]
