@@ -34,6 +34,10 @@ inline bool special(const PHLWORKSPACE& ws) {
     return ws->m_isSpecialWorkspace;
 }
 
+inline SP<::Layout::CSpace> space(const PHLWORKSPACE& ws) {
+    return ws->m_space;
+}
+
 // The windows of w's group, w included; w alone when it is not grouped.
 inline std::vector<PHLWINDOW> groupMembers(const PHLWINDOW& w) {
     if (!w->m_group)
@@ -44,6 +48,11 @@ inline std::vector<PHLWINDOW> groupMembers(const PHLWINDOW& w) {
             members.push_back(m);
     }
     return members;
+}
+
+// Recompute what a window's tags change: its opacity, shadow, border and decorations.
+inline void refreshAfterTagChange(const PHLWINDOW& w) {
+    w->updateDecorationValues();
 }
 
 // The fade that hides a window behind full screen: what CWindowState::moveToZ sets.

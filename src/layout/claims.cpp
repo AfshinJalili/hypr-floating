@@ -42,7 +42,7 @@ void setTag(const PHLWINDOW& w, const char* tag, bool on) {
         return;
     if (w->m_ruleApplicator->m_tagKeeper.applyTag(std::string(on ? "+" : "-") + tag)) {
         w->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_TAG);
-        w->updateDecorationValues();
+        Compat::refreshAfterTagChange(w);
     }
 }
 
@@ -59,7 +59,7 @@ eWorkspace kindOf(const PHLWORKSPACE& ws, bool unloading) {
 
 // One window against its workspace; the workspace counts as not floating when unloading.
 void syncWindow(const PHLWINDOW& w, bool unloading) {
-    if (!Compat::mapped(w) || !w->m_workspace || !w->m_workspace->m_space)
+    if (!Compat::mapped(w) || !w->m_workspace || !Compat::space(w->m_workspace))
         return;
 
     const auto R = Floating::sync({.workspace = kindOf(w->m_workspace, unloading), .floating = Compat::floating(w), .pinned = Compat::pinned(w), .claimed = tagged(w, CLAIM_TAG)});
@@ -98,9 +98,10 @@ void flush() {
 } // namespace
 
 bool floatingWorkspace(const PHLWORKSPACE& ws) {
-    if (!ws || !ws->m_space || !ws->m_space->algorithm() || !ws->m_space->algorithm()->tiledAlgo())
+    const auto SPACE = ws ? Compat::space(ws) : nullptr;
+    if (!SPACE || !SPACE->algorithm() || !SPACE->algorithm()->tiledAlgo())
         return false;
-    return ::Layout::Supplementary::algoMatcher()->getNameForTiledAlgo(ws->m_space->algorithm()->tiledAlgo().get()) == LAYOUT_NAME;
+    return ::Layout::Supplementary::algoMatcher()->getNameForTiledAlgo(SPACE->algorithm()->tiledAlgo().get()) == LAYOUT_NAME;
 }
 
 void claim(const SP<::Layout::CAlgorithm>& algo, const SP<::Layout::ITarget>& target) {
