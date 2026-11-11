@@ -18,8 +18,8 @@ static bool same(const SBox& a, const SBox& b) {
     return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
 }
 
-static SWindow window(eWorkspace ws, bool floating, bool claimed, bool pinned = false) {
-    return {.workspace = ws, .floating = floating, .pinned = pinned, .claimed = claimed};
+static SWindow window(eWorkspace ws, bool floating, bool claimed, bool pinned = false, bool marked = false) {
+    return {.workspace = ws, .floating = floating, .pinned = pinned, .claimed = claimed, .marked = marked};
 }
 
 int main() {
@@ -44,18 +44,18 @@ int main() {
     // --- a window against its workspace
     using enum eWorkspace;
     auto s = sync(window(FLOATING, true, true));
-    check(!s.retile && s.claimed && s.tags && s.tags->onFloatingWorkspace && s.tags->floatedByLayout, "claimed on a floating workspace: stays, both tags");
+    check(!s.retile && s.claimed && s.marked, "claimed on a floating workspace: stays, claimed and marked");
     s = sync(window(FLOATING, true, false));
-    check(!s.retile && !s.claimed && s.tags && s.tags->onFloatingWorkspace && !s.tags->floatedByLayout, "floating on its own on a floating workspace: workspace tag only");
+    check(!s.retile && !s.claimed && s.marked, "floating on its own on a floating workspace: marked, not claimed");
     s = sync(window(FLOATING, false, false));
-    check(!s.retile && !s.claimed && s.tags && s.tags->onFloatingWorkspace && !s.tags->floatedByLayout, "user-tiled on a floating workspace: workspace tag only");
+    check(!s.retile && !s.claimed && s.marked, "user-tiled on a floating workspace: marked, not claimed");
     s = sync(window(FLOATING, false, true));
-    check(!s.claimed && s.tags && !s.tags->floatedByLayout, "no claim survives a window being tiled");
+    check(!s.claimed && s.marked, "no claim survives a window being tiled");
 
     s = sync(window(TILED, true, true));
-    check(s.retile && !s.claimed && s.tags && *s.tags == STags{}, "claimed and floating where the workspace tiles: tile again, no tags");
-    s = sync(window(TILED, true, false));
-    check(!s.retile && !s.claimed && s.tags && *s.tags == STags{}, "floating on its own where the workspace tiles: stays floating");
+    check(s.retile && !s.claimed && !s.marked, "claimed and floating where the workspace tiles: tile again, unmarked");
+    s = sync(window(TILED, true, false, false, true));
+    check(!s.retile && !s.claimed && !s.marked, "floating on its own where the workspace tiles: stays floating, unmarked");
     s = sync(window(TILED, false, false));
     check(!s.retile && !s.claimed, "tiled where the workspace tiles: nothing");
     s = sync(window(TILED, true, true, true));
@@ -63,10 +63,10 @@ int main() {
     s = sync(window(TILED, false, true));
     check(!s.retile && !s.claimed, "a claimed window that is already tiled only loses its claim");
 
-    s = sync(window(SPECIAL, true, true));
-    check(!s.retile && s.claimed && !s.tags, "special workspace: claim and tags are kept");
+    s = sync(window(SPECIAL, true, true, false, true));
+    check(!s.retile && s.claimed && s.marked, "special workspace: claim and mark are kept");
     s = sync(window(SPECIAL, false, false));
-    check(!s.retile && !s.claimed && !s.tags, "special workspace, unclaimed: nothing");
+    check(!s.retile && !s.claimed && !s.marked, "special workspace, unclaimed: nothing");
 
     // --- round trips: floating -> tiled -> floating, and what is left floating
     struct SW {
@@ -79,16 +79,18 @@ int main() {
         const auto R  = sync(e.w);
         e.w.floating  = e.w.floating && !R.retile;
         e.w.claimed   = R.claimed;
+        e.w.marked    = R.marked;
     }
-    check(!ws[0].w.floating && ws[1].w.floating, "the workspace stops floating: ours tile, the user's stay floating");
+    check(!ws[0].w.floating && ws[1].w.floating && !ws[0].w.marked && !ws[1].w.marked, "the workspace stops floating: ours tile, the user's stay floating, nothing stays marked");
     for (auto& e : ws) { // it floats again: tiled windows are claimed
         e.w.workspace = FLOATING;
         if (!e.w.floating && onArrival(eArrival::ARRIVED, false) == eArrivalVerdict::CLAIM)
             e.w.floating = e.w.claimed = true;
         const auto R = sync(e.w);
         e.w.claimed  = R.claimed;
+        e.w.marked   = R.marked;
     }
-    check(ws[0].w.floating && ws[0].w.claimed && ws[1].w.floating && !ws[1].w.claimed, "floats again: the same windows are claimed, the user's still is not");
+    check(ws[0].w.floating && ws[0].w.claimed && ws[1].w.floating && !ws[1].w.claimed && ws[0].w.marked && ws[1].w.marked, "floats again: the same windows are claimed, the user's still is not, both marked");
 
     std::puts(g_failed ? "FAILED" : "all PASS");
     return g_failed != 0;

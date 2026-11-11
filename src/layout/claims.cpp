@@ -24,7 +24,9 @@ using namespace Floating;
 namespace {
 
 constexpr const char* LAYOUT_NAME   = "floating";
-constexpr const char* CLAIM_TAG     = "hypr-floating-claimed";
+constexpr const char* CLAIM_TAG     = "hypr-floating-claimed";   // the layout floated the window
+constexpr const char* MARK_TAG      = "hypr-floating-workspace"; // the window is on a floating workspace
+// Omarchy's own tags, for its titlebars and bar: mirrors of the two above.
 constexpr const char* WORKSPACE_TAG = "omarchy-floating-workspace";
 constexpr const char* FLOATED_TAG   = "omarchy-mode-floated";
 
@@ -62,14 +64,19 @@ void syncWindow(const PHLWINDOW& w, bool unloading) {
     if (!Compat::mapped(w) || !w->m_workspace || !Compat::space(w->m_workspace))
         return;
 
-    const auto R = Floating::sync({.workspace = kindOf(w->m_workspace, unloading), .floating = Compat::floating(w), .pinned = Compat::pinned(w), .claimed = tagged(w, CLAIM_TAG)});
+    const bool WASCLAIMED = tagged(w, CLAIM_TAG), WASMARKED = tagged(w, MARK_TAG);
+    const auto R          = Floating::sync({.workspace = kindOf(w->m_workspace, unloading), .floating = Compat::floating(w), .pinned = Compat::pinned(w), .claimed = WASCLAIMED, .marked = WASMARKED});
 
     setTag(w, CLAIM_TAG, R.claimed);
+    setTag(w, MARK_TAG, R.marked);
     if (R.retile && w->layoutTarget() && w->layoutTarget()->space())
         g_layoutManager->changeFloatingMode(w->layoutTarget());
-    if (R.tags && Config::omarchyTags()) {
-        setTag(w, WORKSPACE_TAG, R.tags->onFloatingWorkspace);
-        setTag(w, FLOATED_TAG, R.tags->floatedByLayout);
+    // Omarchy's own Lua floating mode sets the same tags: take them back only from a window we set them on.
+    if (Config::omarchyTags()) {
+        if (R.marked || WASMARKED)
+            setTag(w, WORKSPACE_TAG, R.marked);
+        if (R.claimed || WASCLAIMED)
+            setTag(w, FLOATED_TAG, R.claimed);
     }
 }
 
