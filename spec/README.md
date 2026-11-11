@@ -176,7 +176,7 @@ Each variant without one rule fails the property that rule is for (the traces ar
 | `noexit` | `NothingFloatedWhereNothingFloats` | A window opens on a floating workspace; the plugin unloads. The window floats and nothing floats it: caveat 2 |
 | `headtag` | `ClaimedExact` | Two windows form a group while the plugin is unloaded; it loads. Both float, but only the head is claimed: caveat 3 |
 | `nogroup` | `ClaimedExact` | A window opens into a claimed floated group, never reaching the layout: it floats unclaimed: caveat 3 |
-| `all` | `UserFloatedStayFloating` | A window floats by a rule on a floating workspace; the workspace's layout goes to tiled. The window tiles though the user never asked |
+| `all` | `UserFloatedStayFloating` | A window floats by a rule; it is carried to a workspace that does not float and tiles there, though the user never asked |
 
 ## Limits
 
