@@ -3,7 +3,7 @@
 # floats every window. Each scenario starts its own nested Hyprland and prints PASS
 # or FAIL; the script exits non-zero on any FAIL.
 # Usage: test/run-floating.sh <hypr-floating.so> [scenario ...]
-#   scenarios: open switch toggle fullscreen groups move unload monitors tiled (default: all)
+#   scenarios: open switch toggle fullscreen groups move rules unload monitors tiled (default: all)
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 SO="$(realpath "${1:?usage: run-floating.sh <hypr-floating.so> [scenario ...]}")"; shift
@@ -194,6 +194,37 @@ scenario_move() {
   alive; session_stop
 }
 
+scenario_rules() {
+  echo "== rules: a window floats on its own by the rules that float it now, not by one that matched as it opened"
+  LOG_NAME=rules session_start "$SO"
+  # As Omarchy's own floating mode floats a workspace: a rule matching every window opening there.
+  run 'hl.window_rule({ name = "float-on-3", match = { workspace = "3" }, float = true })'
+  workspace 3; open_class A
+  expect "workspace 3 is dwindle" "$(layout_of 3)" dwindle
+  expect_desc A floating "a window opening where a workspace's rule floats it floats"
+  move_to A 2
+  expect_desc A tiled "carried to a dwindle workspace the rule does not match: A tiles"
+  move_to A 3
+  expect_desc A floating "carried back where the rule matches: A floats on its own"
+  run 'hl.window_rule({ name = "float-on-3", enabled = false })'
+  layout 3 scrolling
+  expect_desc A tiled "the rule removed, then the layout changes: A tiles"
+  layout 3 floating; layout 3 dwindle
+  expect_desc A tiled "floating and back to dwindle: A tiles"
+  workspace 2
+  run 'hl.exec_cmd("foot --app-id L sleep 600", { float = true })' 0.1
+  wait_until 15 has_class L || echo "WARN: L did not open"; sleep 1
+  expect_desc L floating "launched with a float rule on a dwindle workspace: L floats"
+  layout 2 scrolling
+  expect_desc L floating "the layout changes: L, floated by the rule it was launched with, stays floating"
+  move_to L 4
+  expect_desc L floating "carried to another dwindle workspace: L stays floating"
+  open_class F; move_to F 4
+  expect_desc F floating "F, floated by an app's rule, stays floating on a dwindle workspace"
+  workspace 1
+  alive; session_stop
+}
+
 scenario_unload() {
   echo "== unload: the windows of floating workspaces tile, but those that float on their own; the session lives"
   LOG_NAME=unload session_start "$SO"
@@ -282,7 +313,7 @@ scenario_tiled() {
   alive; session_stop
 }
 
-SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(open switch toggle fullscreen groups move unload monitors tiled)
+SCENARIOS=("$@"); [[ ${#SCENARIOS[@]} == 0 ]] && SCENARIOS=(open switch toggle fullscreen groups move rules unload monitors tiled)
 for s in "${SCENARIOS[@]}"; do "scenario_$s"; done
 
 host_guard_end

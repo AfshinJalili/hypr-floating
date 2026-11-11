@@ -21,6 +21,14 @@ int nextCascade(int cascade) {
     return (cascade + 1) % CASCADE_STEPS;
 }
 
+bool floatsOnItsOwn(const SOwnFloat& w) {
+    return w.requested || w.launchRule.value_or(w.rules.value_or(false));
+}
+
+std::optional<bool> launchRule(std::optional<bool> readAtMap, std::optional<bool> registeredRules) {
+    return readAtMap != registeredRules ? readAtMap : std::nullopt;
+}
+
 eAction applyMode(const SWindow& w) {
     if (w.workspace == eWorkspace::SPECIAL || w.pinned || w.fullscreen)
         return eAction::KEEP;

@@ -2,6 +2,7 @@
 
 #include "floatingAlgo.hpp"
 #include "modeSync.hpp"
+#include "ownFloat.hpp"
 #include "../compat.hpp"
 
 #include <hyprland/src/event/EventBus.hpp>
@@ -52,7 +53,10 @@ void install(HANDLE handle) {
     // Each of these is still being committed when it fires; changing the window underneath it
     // loses the change, so ModeSync applies the mode a tick later.
     auto& window = Event::bus()->m_events.window;
-    g_listeners.push_back(window.open.listen([](PHLWINDOW w) { ModeSync::reached(w); }));
+    g_listeners.push_back(window.open.listen([](PHLWINDOW w) {
+        OwnFloat::opened(w); // what it was launched with can be told apart only now
+        ModeSync::reached(w);
+    }));
     g_listeners.push_back(window.moveToWorkspace.listen([](PHLWINDOW w, PHLWORKSPACE) { ModeSync::reached(w); }));
     g_listeners.push_back(window.fullscreen.listen([](PHLWINDOW w) {
         if (!Fullscreen::controller()->isFullscreen(w))
@@ -73,6 +77,7 @@ void uninstall() {
     // before it removes the plugin's hooks. ModeSync ignores it once stopped.
     g_listeners.clear();
     ModeSync::stop();
+    OwnFloat::forget();
 }
 
 } // namespace HyprFloating::FloatingLayout
